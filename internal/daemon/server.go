@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -104,6 +105,7 @@ func (s *Server) Run() error {
 	mux.HandleFunc("/status", s.handleStatus)
 	mux.HandleFunc("/shutdown", s.handleShutdown)
 	mux.HandleFunc("/history", s.handleHistory)
+	mux.HandleFunc("/context", s.handleContext)
 
 	// WebSocket endpoints
 	mux.HandleFunc("/ws/chat", s.handleWSChat)
@@ -196,6 +198,42 @@ func (s *Server) handleShutdown(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		s.quit <- syscall.SIGTERM
 	}()
+}
+
+func (s *Server) handleContext(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		resp := &api.ContextResponse{
+			Context: s.handler.FullContext(),
+		}
+		data, err := proto.Marshal(resp)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/x-protobuf")
+		_, _ = w.Write(data)
+
+	case http.MethodPost:
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "failed to read body", http.StatusBadRequest)
+			return
+		}
+
+		var req api.ContextRequest
+		if err := proto.Unmarshal(data, &req); err != nil {
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return
+		}
+
+		s.handler.SetContext(req.Context)
+		s.logger.Info().Str("context", req.Context).Msg("context updated")
+		w.WriteHeader(http.StatusOK)
+
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
 }
 
 func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {

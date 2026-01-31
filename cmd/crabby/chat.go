@@ -108,6 +108,31 @@ func runREPL(ctx context.Context, c *client.Client, opts client.ChatOptions) err
 			continue
 		}
 
+		if input == "/context" {
+			context, err := c.GetContext(ctx)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			} else {
+				fmt.Printf("%s\n\n", context)
+			}
+			continue
+		}
+
+		if strings.HasPrefix(input, "/context ") {
+			newContext := strings.TrimPrefix(input, "/context ")
+			if newContext == "clear" {
+				newContext = ""
+			}
+			if err := c.SetContext(ctx, newContext); err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			} else if newContext == "" {
+				fmt.Printf("%sContext cleared.%s\n\n", colorGray, colorReset)
+			} else {
+				fmt.Printf("%sContext set.%s\n\n", colorGray, colorReset)
+			}
+			continue
+		}
+
 		if err := c.Chat(ctx, input, os.Stdout, opts); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		}

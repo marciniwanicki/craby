@@ -18,6 +18,7 @@ type Handler struct {
 	agent   *agent.Agent
 	logger  zerolog.Logger
 	history []agent.Message
+	context string
 }
 
 // NewHandler creates a new handler
@@ -31,6 +32,25 @@ func NewHandler(agent *agent.Agent, logger zerolog.Logger) *Handler {
 // History returns the current conversation history
 func (h *Handler) History() []agent.Message {
 	return h.history
+}
+
+// Context returns the current user-set context string
+func (h *Handler) Context() string {
+	return h.context
+}
+
+// FullContext returns the complete context (system prompt + user context)
+func (h *Handler) FullContext() string {
+	base := h.agent.SystemPrompt()
+	if h.context == "" {
+		return base
+	}
+	return base + "\n\n<context>\n" + h.context + "\n</context>"
+}
+
+// SetContext sets the context string
+func (h *Handler) SetContext(ctx string) {
+	h.context = ctx
 }
 
 // HandleChat processes a chat WebSocket connection
@@ -75,10 +95,15 @@ func (h *Handler) processChat(conn *websocket.Conn, message string) error {
 	ctx := context.Background()
 	eventChan := make(chan agent.Event, 100)
 
+	opts := agent.RunOptions{
+		History: h.history,
+		Context: h.context,
+	}
+
 	resultChan := make(chan []agent.Message, 1)
 	errChan := make(chan error, 1)
 	go func() {
-		history, err := h.agent.Run(ctx, message, h.history, eventChan)
+		history, err := h.agent.Run(ctx, message, opts, eventChan)
 		if err != nil {
 			errChan <- err
 			return

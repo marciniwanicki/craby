@@ -624,6 +624,94 @@ func (x *HistoryResponse) GetMessages() []*HistoryMessage {
 	return nil
 }
 
+type ContextRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Context       string                 `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ContextRequest) Reset() {
+	*x = ContextRequest{}
+	mi := &file_internal_api_messages_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ContextRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ContextRequest) ProtoMessage() {}
+
+func (x *ContextRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_api_messages_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ContextRequest.ProtoReflect.Descriptor instead.
+func (*ContextRequest) Descriptor() ([]byte, []int) {
+	return file_internal_api_messages_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ContextRequest) GetContext() string {
+	if x != nil {
+		return x.Context
+	}
+	return ""
+}
+
+type ContextResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Context       string                 `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ContextResponse) Reset() {
+	*x = ContextResponse{}
+	mi := &file_internal_api_messages_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ContextResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ContextResponse) ProtoMessage() {}
+
+func (x *ContextResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_api_messages_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ContextResponse.ProtoReflect.Descriptor instead.
+func (*ContextResponse) Descriptor() ([]byte, []int) {
+	return file_internal_api_messages_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ContextResponse) GetContext() string {
+	if x != nil {
+		return x.Context
+	}
+	return ""
+}
+
 var File_internal_api_messages_proto protoreflect.FileDescriptor
 
 const file_internal_api_messages_proto_rawDesc = "" +
@@ -663,7 +751,11 @@ const file_internal_api_messages_proto_rawDesc = "" +
 	"\x04role\x18\x01 \x01(\x0e2\x13.crabby.api.v1.RoleR\x04role\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\tR\acontent\"L\n" +
 	"\x0fHistoryResponse\x129\n" +
-	"\bmessages\x18\x01 \x03(\v2\x1d.crabby.api.v1.HistoryMessageR\bmessages*+\n" +
+	"\bmessages\x18\x01 \x03(\v2\x1d.crabby.api.v1.HistoryMessageR\bmessages\"*\n" +
+	"\x0eContextRequest\x12\x18\n" +
+	"\acontext\x18\x01 \x01(\tR\acontext\"+\n" +
+	"\x0fContextResponse\x12\x18\n" +
+	"\acontext\x18\x01 \x01(\tR\acontext*+\n" +
 	"\x04Role\x12\r\n" +
 	"\tASSISTANT\x10\x00\x12\n" +
 	"\n" +
@@ -683,7 +775,7 @@ func file_internal_api_messages_proto_rawDescGZIP() []byte {
 }
 
 var file_internal_api_messages_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_internal_api_messages_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_internal_api_messages_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_internal_api_messages_proto_goTypes = []any{
 	(Role)(0),               // 0: crabby.api.v1.Role
 	(*ChatRequest)(nil),     // 1: crabby.api.v1.ChatRequest
@@ -695,6 +787,8 @@ var file_internal_api_messages_proto_goTypes = []any{
 	(*StatusResponse)(nil),  // 7: crabby.api.v1.StatusResponse
 	(*HistoryMessage)(nil),  // 8: crabby.api.v1.HistoryMessage
 	(*HistoryResponse)(nil), // 9: crabby.api.v1.HistoryResponse
+	(*ContextRequest)(nil),  // 10: crabby.api.v1.ContextRequest
+	(*ContextResponse)(nil), // 11: crabby.api.v1.ContextResponse
 }
 var file_internal_api_messages_proto_depIdxs = []int32{
 	3, // 0: crabby.api.v1.ChatResponse.text:type_name -> crabby.api.v1.TextChunk
@@ -728,7 +822,7 @@ func file_internal_api_messages_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_api_messages_proto_rawDesc), len(file_internal_api_messages_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   9,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

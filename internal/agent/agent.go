@@ -97,19 +97,36 @@ func NewAgent(llm LLMClient, registry *tools.Registry, logger zerolog.Logger, sy
 	}
 }
 
-// Run executes the agent loop with the given user message and conversation history
+// SystemPrompt returns the base system prompt
+func (a *Agent) SystemPrompt() string {
+	return a.systemPrompt
+}
+
+// RunOptions contains optional parameters for the agent run
+type RunOptions struct {
+	History []Message
+	Context string
+}
+
+// Run executes the agent loop with the given user message and options
 // It streams events to eventChan and returns when complete
 // Text is buffered and only streamed when it's the final answer (no tool calls)
 // Tool calls are streamed immediately
 // Returns the updated message history
-func (a *Agent) Run(ctx context.Context, userMessage string, history []Message, eventChan chan<- Event) ([]Message, error) {
+func (a *Agent) Run(ctx context.Context, userMessage string, opts RunOptions, eventChan chan<- Event) ([]Message, error) {
 	defer close(eventChan)
+
+	// Build system prompt, optionally with context
+	systemPrompt := a.systemPrompt
+	if opts.Context != "" {
+		systemPrompt = systemPrompt + "\n\n<context>\n" + opts.Context + "\n</context>"
+	}
 
 	// Build messages: system prompt + history + new user message
 	messages := []Message{
-		{Role: "system", Content: a.systemPrompt},
+		{Role: "system", Content: systemPrompt},
 	}
-	messages = append(messages, history...)
+	messages = append(messages, opts.History...)
 	messages = append(messages, Message{Role: "user", Content: userMessage})
 
 	toolDefMaps := a.registry.Definitions()

@@ -57,3 +57,11 @@ message HistoryMessage {
 message HistoryResponse {
   repeated HistoryMessage messages = 1;
 }
+
+message ContextRequest {
+  string context = 1;
+}
+
+message ContextResponse {
+  string context = 1;
+}

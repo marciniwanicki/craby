@@ -197,6 +197,63 @@ func (c *Client) Shutdown(ctx context.Context) error {
 	return nil
 }
 
+// GetContext retrieves the current context from the daemon
+func (c *Client) GetContext(ctx context.Context) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/context", nil)
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to connect to daemon: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("daemon returned status %d", resp.StatusCode)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	var contextResp api.ContextResponse
+	if err := proto.Unmarshal(data, &contextResp); err != nil {
+		return "", err
+	}
+
+	return contextResp.Context, nil
+}
+
+// SetContext sets the context on the daemon
+func (c *Client) SetContext(ctx context.Context, context string) error {
+	reqBody := &api.ContextRequest{Context: context}
+	data, err := proto.Marshal(reqBody)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/context", strings.NewReader(string(data)))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/x-protobuf")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to connect to daemon: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("daemon returned status %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
 // History retrieves the conversation history from the daemon
 func (c *Client) History(ctx context.Context) (*api.HistoryResponse, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/history", nil)
