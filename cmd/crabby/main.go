@@ -18,32 +18,36 @@ var (
 )
 
 func main() {
+	// Create chat command first so we can reference it
+	chat := chatCmd()
+
 	rootCmd := &cobra.Command{
 		Use:   "crabby [message]",
 		Short: "An open-source personal AI assistant designed for experimental learning and daily utility.",
 		Long: `An open-source personal AI assistant designed for experimental learning and daily utility.
 
-If a message is provided directly, it will be sent as a chat query.
+If a message is provided, it will be sent as a one-shot query.
 Example: crabby "What is the weather today?"
 
-For interactive chat, use: crabby chat`,
+Without arguments, starts interactive chat.`,
 		// Allow arbitrary args so we can treat them as chat messages
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			c := client.NewClient(port)
+			ctx := context.Background()
+
+			if !c.IsRunning(ctx) {
+				return fmt.Errorf("daemon is not running. Start it with: crabby daemon")
+			}
+
 			// If args provided, send as one-shot message
 			if len(args) > 0 {
-				c := client.NewClient(port)
-				ctx := context.Background()
-
-				if !c.IsRunning(ctx) {
-					return fmt.Errorf("daemon is not running. Start it with: crabby daemon")
-				}
-
 				message := strings.Join(args, " ")
 				return c.Chat(ctx, message, os.Stdout, client.ChatOptions{})
 			}
-			// No args, show help
-			return cmd.Help()
+
+			// No args, start interactive chat
+			return chat.RunE(chat, args)
 		},
 	}
 
@@ -54,7 +58,7 @@ For interactive chat, use: crabby chat`,
 
 	// Add subcommands
 	rootCmd.AddCommand(daemonCmd())
-	rootCmd.AddCommand(chatCmd())
+	rootCmd.AddCommand(chat)
 	rootCmd.AddCommand(statusCmd())
 	rootCmd.AddCommand(stopCmd())
 

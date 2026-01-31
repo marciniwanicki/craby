@@ -55,19 +55,19 @@ crabby daemon
 
 ### Chat
 
-**One-shot mode** - send a single message directly:
+**Interactive mode** - start a conversation:
+
+```bash
+crabby
+```
+
+**One-shot mode** - send a single message:
 
 ```bash
 crabby "What is the capital of France?"
 ```
 
-**Interactive REPL mode** - start a conversation:
-
-```bash
-crabby chat
-```
-
-In REPL mode, type your messages and press Enter. Type `exit` to leave or `Ctrl+C` to interrupt.
+In interactive mode, type your messages and press Enter. Type `exit` to leave or `Ctrl+C` to interrupt.
 
 ### Check Status
 
@@ -107,8 +107,8 @@ crabby --port 9000 "Hello!"
 
 | Command | Description |
 |---------|-------------|
+| `crabby` | Start interactive chat |
 | `crabby "message"` | Send a one-shot message |
-| `crabby chat` | Start interactive REPL |
 | `crabby daemon` | Start the daemon server |
 | `crabby status` | Check daemon and Ollama status |
 | `crabby stop` | Stop the running daemon |
