@@ -69,6 +69,17 @@ crabby "What is the capital of France?"
 
 In interactive mode, type your messages and press Enter. Type `exit` to leave or `Ctrl+C` to interrupt.
 
+### Chat Commands
+
+While in interactive mode, you can use special commands:
+
+| Command | Description |
+|---------|-------------|
+| `/history` | Show conversation history |
+| `/context` | Show full context sent to the LLM |
+| `/context <text>` | Add custom context for subsequent messages |
+| `/context clear` | Clear custom context |
+
 ### Check Status
 
 ```bash

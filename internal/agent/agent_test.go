@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/marciniwanicki/crabby/internal/config"
@@ -426,6 +427,143 @@ func TestAgent_Run_BuffersIntermediateText(t *testing.T) {
 	}
 	if !foundFinalAnswer {
 		t.Error("expected final answer to be streamed")
+	}
+}
+
+func TestAgent_Run_WithContext(t *testing.T) {
+	llm := &mockLLMClient{
+		responses: []ChatResult{
+			{Content: "Response", Done: true},
+		},
+	}
+
+	registry := tools.NewRegistry()
+	agent := NewAgent(llm, registry, testLogger(), "Base system prompt.")
+
+	eventChan := make(chan Event, 10)
+	opts := RunOptions{
+		Context: "Additional context here",
+	}
+	_, _ = agent.Run(context.Background(), "User message", opts, eventChan)
+
+	// Drain events
+	for range eventChan {
+	}
+
+	// Check that system prompt includes context
+	if len(llm.messages) == 0 {
+		t.Fatal("expected messages to be recorded")
+	}
+
+	msgs := llm.messages[0]
+	systemMsg := msgs[0].Content
+
+	if !strings.Contains(systemMsg, "Base system prompt.") {
+		t.Error("expected system message to contain base prompt")
+	}
+
+	if !strings.Contains(systemMsg, "<context>") {
+		t.Error("expected system message to contain <context> tag")
+	}
+
+	if !strings.Contains(systemMsg, "Additional context here") {
+		t.Error("expected system message to contain the context")
+	}
+}
+
+func TestAgent_Run_WithHistory(t *testing.T) {
+	llm := &mockLLMClient{
+		responses: []ChatResult{
+			{Content: "Response", Done: true},
+		},
+	}
+
+	registry := tools.NewRegistry()
+	agent := NewAgent(llm, registry, testLogger(), "System prompt.")
+
+	eventChan := make(chan Event, 10)
+	opts := RunOptions{
+		History: []Message{
+			{Role: "user", Content: "Previous question"},
+			{Role: "assistant", Content: "Previous answer"},
+		},
+	}
+	_, _ = agent.Run(context.Background(), "New question", opts, eventChan)
+
+	// Drain events
+	for range eventChan {
+	}
+
+	// Check that messages include history
+	if len(llm.messages) == 0 {
+		t.Fatal("expected messages to be recorded")
+	}
+
+	msgs := llm.messages[0]
+	// Should be: system + history (2) + user = 4 messages
+	if len(msgs) != 4 {
+		t.Fatalf("expected 4 messages, got %d", len(msgs))
+	}
+
+	if msgs[0].Role != "system" {
+		t.Errorf("expected message 0 to be system, got %q", msgs[0].Role)
+	}
+	if msgs[1].Role != "user" || msgs[1].Content != "Previous question" {
+		t.Errorf("expected message 1 to be previous user message, got %q: %q", msgs[1].Role, msgs[1].Content)
+	}
+	if msgs[2].Role != "assistant" || msgs[2].Content != "Previous answer" {
+		t.Errorf("expected message 2 to be previous assistant message, got %q: %q", msgs[2].Role, msgs[2].Content)
+	}
+	if msgs[3].Role != "user" || msgs[3].Content != "New question" {
+		t.Errorf("expected message 3 to be new user message, got %q: %q", msgs[3].Role, msgs[3].Content)
+	}
+}
+
+func TestAgent_Run_ReturnsUpdatedHistory(t *testing.T) {
+	llm := &mockLLMClient{
+		responses: []ChatResult{
+			{Content: "New response", Done: true},
+		},
+	}
+
+	registry := tools.NewRegistry()
+	agent := NewAgent(llm, registry, testLogger(), "System prompt.")
+
+	eventChan := make(chan Event, 10)
+	opts := RunOptions{
+		History: []Message{
+			{Role: "user", Content: "Old question"},
+			{Role: "assistant", Content: "Old answer"},
+		},
+	}
+	history, err := agent.Run(context.Background(), "New question", opts, eventChan)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Drain events
+	for range eventChan {
+	}
+
+	// History should include old messages + new exchange
+	if len(history) != 4 {
+		t.Fatalf("expected 4 messages in history, got %d", len(history))
+	}
+
+	if history[2].Role != "user" || history[2].Content != "New question" {
+		t.Errorf("expected history[2] to be new user message, got %q: %q", history[2].Role, history[2].Content)
+	}
+	if history[3].Role != "assistant" || history[3].Content != "New response" {
+		t.Errorf("expected history[3] to be new assistant message, got %q: %q", history[3].Role, history[3].Content)
+	}
+}
+
+func TestAgent_SystemPrompt(t *testing.T) {
+	registry := tools.NewRegistry()
+	agent := NewAgent(nil, registry, testLogger(), "My system prompt")
+
+	if got := agent.SystemPrompt(); got != "My system prompt" {
+		t.Errorf("expected 'My system prompt', got %q", got)
 	}
 }
 
