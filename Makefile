@@ -1,4 +1,4 @@
-.PHONY: build proto clean install
+.PHONY: build proto clean install deps help
 
 # Binary names
 BINARY_NAME=crabby
@@ -17,32 +17,30 @@ PROTO_FILES=$(PROTO_DIR)/messages.proto
 # Build flags
 LDFLAGS=-ldflags "-s -w"
 
-all: proto build
+.DEFAULT_GOAL := help
 
-build:
+all: proto build ## Build everything (proto + binary)
+
+build: ## Build the crabby binary
 	$(GOBUILD) $(LDFLAGS) -o $(BINARY_NAME) ./cmd/crabby
 
-proto:
+proto: ## Generate protobuf Go code
 	$(PROTOC) --go_out=. --go_opt=paths=source_relative $(PROTO_FILES)
 
-clean:
+clean: ## Remove build artifacts
 	$(GOCLEAN)
 	rm -f $(BINARY_NAME)
 	rm -f $(PROTO_DIR)/*.pb.go
 
-install: build
+install: build ## Install binary to $GOPATH/bin
 	mv $(BINARY_NAME) $(GOPATH)/bin/
 
-deps:
+deps: ## Download and tidy dependencies
 	$(GOMOD) download
 	$(GOMOD) tidy
 
-# Development helpers
-run-daemon: build
-	./$(BINARY_NAME) daemon
-
-run-status: build
-	./$(BINARY_NAME) status
-
-run-chat: build
-	./$(BINARY_NAME) chat
+help: ## Show this help message
+	@echo "Usage: make [target]"
+	@echo ""
+	@echo "Targets:"
+	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*##/ {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
