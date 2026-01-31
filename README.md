@@ -55,10 +55,10 @@ crabby daemon
 
 ### Chat
 
-**One-shot mode** - send a single message:
+**One-shot mode** - send a single message directly:
 
 ```bash
-crabby chat "What is the capital of France?"
+crabby "What is the capital of France?"
 ```
 
 **Interactive REPL mode** - start a conversation:
@@ -67,7 +67,7 @@ crabby chat "What is the capital of France?"
 crabby chat
 ```
 
-In REPL mode, type your messages and press Enter. Type `exit` or `quit` to leave.
+In REPL mode, type your messages and press Enter. Type `exit` to leave or `Ctrl+C` to interrupt.
 
 ### Check Status
 
@@ -100,29 +100,40 @@ Example with custom settings:
 crabby daemon --model llama3.2 --port 9000
 
 # Chat using the custom port
-crabby chat --port 9000 "Hello!"
+crabby --port 9000 "Hello!"
 ```
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `crabby daemon` | Start the daemon server (foreground) |
-| `crabby chat [message]` | Send a message or start interactive REPL |
+| `crabby "message"` | Send a one-shot message |
+| `crabby chat` | Start interactive REPL |
+| `crabby daemon` | Start the daemon server |
 | `crabby status` | Check daemon and Ollama status |
 | `crabby stop` | Stop the running daemon |
+
+## Customization
+
+Crabby uses templates stored in `~/.crabby/` to customize the AI's behavior:
+
+| File | Purpose |
+|------|---------|
+| `~/.crabby/identity.md` | Agent personality and guidelines |
+| `~/.crabby/user.md` | User profile and context |
+| `~/.crabby/settings.json` | Tool permissions and allowlist |
+
+Templates are created automatically on first run. Edit them to personalize the assistant, then restart the daemon to apply changes.
 
 ## Development
 
 ```bash
-# Generate protobuf files
-make proto
-
-# Build
-make build
-
-# Run tests
-go test -v ./...
+make build      # Build the binary
+make test       # Run tests
+make lint       # Run linters
+make format     # Format code
+make proto      # Generate protobuf files
+make help       # Show all targets
 ```
 
 ## License
