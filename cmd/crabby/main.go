@@ -16,8 +16,8 @@ var (
 func main() {
 	rootCmd := &cobra.Command{
 		Use:   "crabby",
-		Short: "Personal AI CLI with daemon architecture",
-		Long:  "Crabby is a CLI tool for personal AI interactions, connecting to a local Qwen 2.5 model via Ollama.",
+		Short: "An open-source personal AI assistant designed for experimental learning and daily utility.",
+		Long:  "An open-source personal AI assistant designed for experimental learning and daily utility.",
 	}
 
 	// Global flags
