@@ -84,9 +84,9 @@ func TestFormatToolCall_ColorCodes(t *testing.T) {
 		t.Error("expected color reset code")
 	}
 
-	// Should contain yellow for icon
-	if !strings.Contains(result, colorYellow) {
-		t.Error("expected yellow color code")
+	// Should contain light yellow for icon
+	if !strings.Contains(result, colorLightYellow) {
+		t.Error("expected light yellow color code")
 	}
 
 	// Should contain white bold for tool name

@@ -75,6 +75,7 @@ While in interactive mode, you can use special commands:
 
 | Command | Description |
 |---------|-------------|
+| `/exit` | Leave the chat |
 | `/history` | Show conversation history |
 | `/context` | Show full context sent to the LLM |
 | `/context <text>` | Add custom context for subsequent messages |

@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/marciniwanicki/crabby/internal/api"
@@ -15,11 +17,12 @@ import (
 
 // ANSI color codes
 const (
-	colorReset     = "\033[0m"
-	colorYellow    = "\033[33m"
-	colorWhiteBold = "\033[1;37m"
-	colorWhite     = "\033[37m"
-	colorGray      = "\033[90m"
+	colorReset       = "\033[0m"
+	colorLightYellow = "\033[93m"
+	colorYellow      = "\033[33m"
+	colorWhiteBold   = "\033[1;37m"
+	colorWhite       = "\033[37m"
+	colorGray        = "\033[90m"
 )
 
 // Verbosity levels
@@ -50,6 +53,119 @@ type ChatOptions struct {
 	Verbosity Verbosity
 }
 
+// ANSI cursor control
+const (
+	cursorHide = "\033[?25l"
+	cursorShow = "\033[?25h"
+)
+
+// spinner displays an animated spinner while waiting
+type spinner struct {
+	frames   []string
+	interval time.Duration
+	output   io.Writer
+	stop     chan struct{}
+	done     chan struct{}
+	pause    chan chan struct{}
+	resume   chan struct{}
+	mu       sync.Mutex
+	running  bool
+	isPaused bool
+	pausedMu sync.Mutex
+}
+
+func newSpinner(output io.Writer) *spinner {
+	return &spinner{
+		frames:   []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},
+		interval: 80 * time.Millisecond,
+		output:   output,
+		stop:     make(chan struct{}),
+		done:     make(chan struct{}),
+		pause:    make(chan chan struct{}),
+		resume:   make(chan struct{}, 1),
+	}
+}
+
+func (s *spinner) Start() {
+	s.mu.Lock()
+	if s.running {
+		s.mu.Unlock()
+		return
+	}
+	s.running = true
+	s.mu.Unlock()
+
+	go func() {
+		defer close(s.done)
+		fmt.Fprint(s.output, cursorHide) // Hide cursor
+		i := 0
+		paused := false
+		for {
+			select {
+			case <-s.stop:
+				if !paused {
+					fmt.Fprint(s.output, "\r\033[K") // Clear the line
+				}
+				fmt.Fprint(s.output, cursorShow) // Show cursor
+				return
+			case ack := <-s.pause:
+				if !paused {
+					fmt.Fprint(s.output, "\r\033[K") // Clear the line
+					paused = true
+					s.pausedMu.Lock()
+					s.isPaused = true
+					s.pausedMu.Unlock()
+				}
+				close(ack) // Signal that pause is complete
+			case <-s.resume:
+				paused = false
+				s.pausedMu.Lock()
+				s.isPaused = false
+				s.pausedMu.Unlock()
+			default:
+				if !paused {
+					fmt.Fprintf(s.output, "\r%s%s %s(thinking)%s", colorLightYellow, s.frames[i%len(s.frames)], colorGray, colorReset)
+					i++
+				}
+				time.Sleep(s.interval)
+			}
+		}
+	}()
+}
+
+func (s *spinner) Pause() {
+	s.pausedMu.Lock()
+	if s.isPaused {
+		s.pausedMu.Unlock()
+		return
+	}
+	s.pausedMu.Unlock()
+
+	ack := make(chan struct{})
+	s.pause <- ack
+	<-ack // Wait for acknowledgment that line is cleared
+}
+
+func (s *spinner) Resume() {
+	select {
+	case s.resume <- struct{}{}:
+	default:
+	}
+}
+
+func (s *spinner) Stop() {
+	s.mu.Lock()
+	if !s.running {
+		s.mu.Unlock()
+		return
+	}
+	s.running = false
+	s.mu.Unlock()
+
+	close(s.stop)
+	<-s.done
+}
+
 // Chat sends a message and streams the response to the provided writer
 func (c *Client) Chat(ctx context.Context, message string, output io.Writer, opts ChatOptions) error {
 	conn, _, err := websocket.DefaultDialer.DialContext(ctx, c.wsURL+"/ws/chat", nil)
@@ -70,6 +186,18 @@ func (c *Client) Chat(ctx context.Context, message string, output io.Writer, opt
 	if err := conn.WriteMessage(websocket.BinaryMessage, data); err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}
+
+	// Start spinner while waiting for response
+	spin := newSpinner(output)
+	spin.Start()
+	spinnerStopped := false
+	stopSpinner := func() {
+		if !spinnerStopped {
+			spin.Stop()
+			spinnerStopped = true
+		}
+	}
+	defer stopSpinner()
 
 	// Read streaming response
 	for {
@@ -94,6 +222,7 @@ func (c *Client) Chat(ctx context.Context, message string, output io.Writer, opt
 
 		switch payload := resp.Payload.(type) {
 		case *api.ChatResponse_Text:
+			spin.Pause()
 			// Always show assistant text
 			if payload.Text.Role == api.Role_ASSISTANT {
 				fmt.Fprint(output, payload.Text.Content)
@@ -103,11 +232,14 @@ func (c *Client) Chat(ctx context.Context, message string, output io.Writer, opt
 			}
 
 		case *api.ChatResponse_ToolCall:
+			spin.Pause()
 			if opts.Verbosity != VerbosityQuiet {
 				fmt.Fprint(output, formatToolCall(payload.ToolCall.Name, payload.ToolCall.Arguments))
 			}
+			spin.Resume()
 
 		case *api.ChatResponse_ToolResult:
+			spin.Pause()
 			if opts.Verbosity == VerbosityVerbose {
 				status := "✓"
 				if !payload.ToolResult.Success {
@@ -120,12 +252,15 @@ func (c *Client) Chat(ctx context.Context, message string, output io.Writer, opt
 				}
 				fmt.Fprintf(output, "%s %s\n", status, out)
 			}
+			spin.Resume()
 
 		case *api.ChatResponse_Done:
+			stopSpinner()
 			fmt.Fprintln(output)
 			return nil
 
 		case *api.ChatResponse_Error:
+			stopSpinner()
 			return fmt.Errorf("server error: %s", payload.Error)
 		}
 	}
@@ -318,7 +453,7 @@ func formatToolCall(name, arguments string) string {
 	if name == "shell" && json.Unmarshal([]byte(arguments), &args) == nil {
 		if cmd, ok := args["command"].(string); ok {
 			return fmt.Sprintf("%s⚡%s%s%s%s(%s%s%s)\n\n",
-				colorYellow, colorReset,
+				colorLightYellow, colorReset,
 				colorWhiteBold, displayName, colorReset,
 				colorWhite, cmd, colorReset)
 		}
@@ -326,7 +461,7 @@ func formatToolCall(name, arguments string) string {
 
 	// Default format for other tools
 	return fmt.Sprintf("%s⚡%s%s%s%s(%s%s%s)\n\n",
-		colorYellow, colorReset,
+		colorLightYellow, colorReset,
 		colorWhiteBold, displayName, colorReset,
 		colorWhite, arguments, colorReset)
 }

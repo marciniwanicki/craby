@@ -5,16 +5,20 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/marciniwanicki/crabby/internal/client"
 	"github.com/spf13/cobra"
 )
 
 const (
-	colorReset  = "\033[0m"
-	colorOrange = "\033[38;5;215m"
-	colorGray   = "\033[90m"
+	colorReset       = "\033[0m"
+	colorLightYellow = "\033[93m"
+	colorGray        = "\033[90m"
+	colorWhite       = "\033[97m"
+	cursorShow       = "\033[?25h"
 )
 
 var (
@@ -67,7 +71,7 @@ func chatCmd() *cobra.Command {
 
 func printBanner(c *client.Client, ctx context.Context) {
 	// Print crab ASCII art in orange
-	fmt.Print(colorOrange)
+	fmt.Print(colorLightYellow)
 	fmt.Print(crabASCII)
 	fmt.Print(colorReset)
 
@@ -78,15 +82,27 @@ func printBanner(c *client.Client, ctx context.Context) {
 	}
 
 	// Instructions in gray
-	fmt.Printf("%sType 'exit' to leave  •  Ctrl+C to interrupt%s\n\n", colorGray, colorReset)
+	fmt.Printf("%sType '/exit' to leave  •  Ctrl+C to interrupt%s\n\n", colorGray, colorReset)
 }
 
 func runREPL(ctx context.Context, c *client.Client, opts client.ChatOptions) error {
+	// Ensure cursor is restored on exit (normal or interrupt)
+	defer fmt.Print(cursorShow)
+
+	// Handle interrupt signal to restore cursor
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		fmt.Print(cursorShow)
+		os.Exit(0)
+	}()
+
 	scanner := bufio.NewScanner(os.Stdin)
 	printBanner(c, ctx)
 
 	for {
-		fmt.Print("❯ ")
+		fmt.Printf("%s❯%s ", colorWhite, colorReset)
 		if !scanner.Scan() {
 			break
 		}
@@ -96,7 +112,10 @@ func runREPL(ctx context.Context, c *client.Client, opts client.ChatOptions) err
 			continue
 		}
 
-		if input == "exit" || input == "quit" {
+		// Reprint the prompt line in gray (move up, clear, reprint)
+		fmt.Printf("\033[F\033[K%s❯%s %s\n", colorGray, colorReset, input)
+
+		if input == "/exit" {
 			fmt.Println("Goodbye!")
 			break
 		}
