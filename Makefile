@@ -1,4 +1,4 @@
-.PHONY: build proto clean install deps format lint help
+.PHONY: build proto clean install deps format lint test help
 
 # Binary names
 BINARY_NAME=crabby
@@ -44,6 +44,9 @@ format: ## Format code with goimports
 
 lint: ## Run linters
 	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest run ./...
+
+test: ## Run tests
+	go test -v -race ./...
 
 help: ## Show this help message
 	@echo "Usage: make [target]"
