@@ -24,9 +24,9 @@ var (
 
 func chatCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "chat [message]",
-		Short: "Send a message or start interactive chat",
-		Long:  "Send a single message to the AI, or start an interactive REPL mode if no message is provided.",
+		Use:   "chat",
+		Short: "Start interactive chat",
+		Long:  "Start an interactive REPL mode for chatting with the AI.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c := client.NewClient(port)
 			ctx := context.Background()
@@ -46,15 +46,6 @@ func chatCmd() *cobra.Command {
 			// Check if daemon is running
 			if !c.IsRunning(ctx) {
 				return fmt.Errorf("daemon is not running. Start it with: crabby daemon")
-			}
-
-			if len(args) > 0 {
-				// One-shot mode: send message and exit
-				message := strings.Join(args, " ")
-				fmt.Print(colorGrey)
-				err := c.Chat(ctx, message, os.Stdout, opts)
-				fmt.Print(colorReset)
-				return err
 			}
 
 			// Interactive REPL mode
