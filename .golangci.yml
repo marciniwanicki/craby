@@ -1,0 +1,70 @@
+version: "2"
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  default: none
+  enable:
+    - errcheck       # Check for unchecked errors
+    - govet          # Report suspicious constructs
+    - ineffassign    # Detect ineffective assignments
+    - staticcheck    # Comprehensive static analysis (includes gosimple)
+    - unused         # Find unused code
+    - misspell       # Find spelling mistakes
+    - gosec          # Security checks
+    - gocritic       # Opinionated linter
+    - errorlint      # Error handling best practices
+    - bodyclose      # HTTP response body close checks
+    - nilerr         # Check nil error returns
+  exclusions:
+    generated: strict
+    paths:
+      - ".*\\.pb\\.go"
+    rules:
+      # Ignore unchecked errors in deferred Close calls - common Go pattern
+      - linters: [errcheck]
+        source: "defer.*\\.(Close|Body\\.Close)\\(\\)"
+      # Ignore unchecked errors for fmt.Fprint* to io.Writer - typically fine
+      - linters: [errcheck]
+        source: "fmt\\.Fprint"
+      # Ignore fieldalignment - micro-optimization, not bugs
+      - linters: [govet]
+        text: "fieldalignment"
+      # Shell tool intentionally executes commands from variables
+      - linters: [gosec]
+        path: "internal/tools/shell.go"
+        text: "G204"
+      # Config file read from known path is intentional
+      - linters: [gosec]
+        path: "internal/config/settings.go"
+        text: "G304"
+      # WebSocket dial returns http.Response that doesn't need closing
+      - linters: [bodyclose]
+        path: "internal/client/client.go"
+        source: "websocket.*Dial"
+  settings:
+    errcheck:
+      check-type-assertions: true
+    govet:
+      disable:
+        - fieldalignment  # Struct field alignment is a micro-optimization
+    gosec:
+      excludes:
+        - G204  # Subprocess with variable - handled in shell tool with allowlist
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+      disabled-checks:
+        - hugeParam      # Passing zerolog.Logger by value is idiomatic
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

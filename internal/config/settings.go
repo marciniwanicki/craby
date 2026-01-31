@@ -105,7 +105,7 @@ func (s *Settings) Save() error {
 	}
 
 	// Create directory if it doesn't exist
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0750); err != nil {
 		return err
 	}
 
@@ -119,7 +119,7 @@ func (s *Settings) Save() error {
 		return err
 	}
 
-	return os.WriteFile(path, data, 0644)
+	return os.WriteFile(path, data, 0600)
 }
 
 // IsCommandAllowed checks if a command is in the shell allowlist

@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"io"
 	"strings"
 
@@ -35,7 +36,7 @@ func (h *Handler) HandleChat(conn *websocket.Conn) {
 		if err != nil {
 			// Treat EOF, unexpected EOF, and normal close as clean disconnects
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) ||
-				err == io.EOF || strings.Contains(err.Error(), "EOF") {
+				errors.Is(err, io.EOF) || strings.Contains(err.Error(), "EOF") {
 				h.logger.Debug().Msg("client disconnected")
 			} else {
 				h.logger.Error().Err(err).Msg("failed to read message")

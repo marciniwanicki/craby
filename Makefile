@@ -1,4 +1,4 @@
-.PHONY: build proto clean install deps help
+.PHONY: build proto clean install deps lint help
 
 # Binary names
 BINARY_NAME=crabby
@@ -38,6 +38,9 @@ install: build ## Install binary to $GOPATH/bin
 deps: ## Download and tidy dependencies
 	$(GOMOD) download
 	$(GOMOD) tidy
+
+lint: ## Run linters
+	golangci-lint run ./...
 
 help: ## Show this help message
 	@echo "Usage: make [target]"

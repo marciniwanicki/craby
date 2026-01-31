@@ -94,8 +94,9 @@ func (s *Server) Run() error {
 	mux.HandleFunc("/ws/chat", s.handleWSChat)
 
 	server := &http.Server{
-		Addr:    fmt.Sprintf(":%d", s.port),
-		Handler: mux,
+		Addr:              fmt.Sprintf(":%d", s.port),
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	// Graceful shutdown
@@ -132,7 +133,7 @@ func (s *Server) Run() error {
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
+	_, _ = w.Write([]byte("OK"))
 }
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
@@ -152,7 +153,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/x-protobuf")
-	w.Write(data)
+	_, _ = w.Write(data)
 }
 
 func (s *Server) handleWSChat(w http.ResponseWriter, r *http.Request) {
@@ -174,7 +175,7 @@ func (s *Server) handleShutdown(w http.ResponseWriter, r *http.Request) {
 
 	s.logger.Info().Msg("shutdown requested via API")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("shutting down"))
+	_, _ = w.Write([]byte("shutting down"))
 
 	// Trigger shutdown in background to allow response to be sent
 	go func() {
