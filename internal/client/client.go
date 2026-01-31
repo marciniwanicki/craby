@@ -2,13 +2,23 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/websocket"
 	"github.com/marciniwanicki/crabby/internal/api"
 	"google.golang.org/protobuf/proto"
+)
+
+// ANSI color codes
+const (
+	colorReset     = "\033[0m"
+	colorYellow    = "\033[33m"
+	colorWhiteBold = "\033[1;37m"
+	colorWhite     = "\033[37m"
 )
 
 // Verbosity levels
@@ -93,7 +103,7 @@ func (c *Client) Chat(ctx context.Context, message string, output io.Writer, opt
 
 		case *api.ChatResponse_ToolCall:
 			if opts.Verbosity != VerbosityQuiet {
-				fmt.Fprintf(output, "\n⚡ %s(%s)\n", payload.ToolCall.Name, payload.ToolCall.Arguments)
+				fmt.Fprint(output, formatToolCall(payload.ToolCall.Name, payload.ToolCall.Arguments))
 			}
 
 		case *api.ChatResponse_ToolResult:
@@ -184,4 +194,27 @@ func (c *Client) Shutdown(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// formatToolCall formats a tool call for display
+func formatToolCall(name, arguments string) string {
+	// Capitalize tool name
+	displayName := strings.ToUpper(name[:1]) + name[1:]
+
+	// Parse arguments to extract relevant info for shell tool
+	var args map[string]any
+	if name == "shell" && json.Unmarshal([]byte(arguments), &args) == nil {
+		if cmd, ok := args["command"].(string); ok {
+			return fmt.Sprintf("\n%s⚡%s %s%s%s(%s%s%s)\n\n",
+				colorYellow, colorReset,
+				colorWhiteBold, displayName, colorReset,
+				colorWhite, cmd, colorReset)
+		}
+	}
+
+	// Default format for other tools
+	return fmt.Sprintf("\n%s⚡%s %s%s%s(%s%s%s)\n\n",
+		colorYellow, colorReset,
+		colorWhiteBold, displayName, colorReset,
+		colorWhite, arguments, colorReset)
 }
