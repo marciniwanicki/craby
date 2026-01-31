@@ -43,7 +43,7 @@ format: ## Format code with goimports
 	go run golang.org/x/tools/cmd/goimports@latest -w .
 
 lint: ## Run linters
-	golangci-lint run ./...
+	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest run ./...
 
 help: ## Show this help message
 	@echo "Usage: make [target]"
