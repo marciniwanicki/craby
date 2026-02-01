@@ -66,12 +66,31 @@ func NewServer(port int, ollamaURL, model string) *Server {
 	// Create Ollama client
 	ollama := NewOllamaClient(ollamaURL, model)
 
+	// Load external tools
+	externalTools, toolStatuses, err := config.LoadAndCheckTools()
+	if err != nil {
+		logger.Warn().Err(err).Msg("failed to load external tools")
+	} else {
+		for name, status := range toolStatuses {
+			if status.Available {
+				logger.Info().Str("tool", name).Msg("external tool available")
+			} else {
+				logger.Warn().Str("tool", name).Str("reason", status.Message).Msg("external tool not available")
+			}
+		}
+	}
+
 	// Create tool registry
 	registry := tools.NewRegistry()
 
 	// Register shell tool if enabled
+	var shellTool *tools.ShellTool
 	if settings.Tools.Shell.Enabled {
-		shellTool := tools.NewShellTool(settings)
+		if len(externalTools) > 0 {
+			shellTool = tools.NewShellToolWithExternalTools(settings, externalTools)
+		} else {
+			shellTool = tools.NewShellTool(settings)
+		}
 		registry.Register(shellTool)
 		logger.Info().Msg("registered shell tool")
 	}
@@ -81,6 +100,14 @@ func NewServer(port int, ollamaURL, model string) *Server {
 		writeTool := tools.NewWriteTool(settings)
 		registry.Register(writeTool)
 		logger.Info().Msg("registered write tool")
+	}
+
+	// Add external tools info to system prompt
+	if shellTool != nil {
+		externalToolsPrompt := shellTool.GetExternalToolsPrompt()
+		if externalToolsPrompt != "" {
+			systemPrompt += "\n" + externalToolsPrompt
+		}
 	}
 
 	// Create agent with system prompt from templates

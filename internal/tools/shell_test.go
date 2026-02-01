@@ -225,3 +225,84 @@ func TestShellTool_Execute_CapturesStderr(t *testing.T) {
 		t.Error("expected stderr to be captured in result")
 	}
 }
+
+func TestWellKnownCommands(t *testing.T) {
+	// Verify some common commands are in the well-known list
+	expectedWellKnown := []string{"ls", "cat", "echo", "grep", "find", "date", "pwd"}
+
+	for _, cmd := range expectedWellKnown {
+		if !wellKnownCommands[cmd] {
+			t.Errorf("expected %q to be a well-known command", cmd)
+		}
+	}
+}
+
+func TestShellTool_HelpCache(t *testing.T) {
+	tool := NewShellTool(testSettings())
+
+	// Verify cache is initialized empty
+	tool.cacheMu.RLock()
+	if len(tool.helpCache) != 0 {
+		t.Error("expected empty help cache on initialization")
+	}
+	tool.cacheMu.RUnlock()
+
+	// Well-known commands should not populate the cache
+	_, _ = tool.Execute(map[string]any{"command": "echo hello"})
+
+	tool.cacheMu.RLock()
+	if len(tool.helpCache) != 0 {
+		t.Error("well-known commands should not populate help cache")
+	}
+	tool.cacheMu.RUnlock()
+}
+
+func TestParseSubcommands(t *testing.T) {
+	tool := NewShellTool(testSettings())
+
+	helpText := `Usage: mycli <command> [options]
+
+Commands:
+  deploy      Deploy the application
+  status      Show current status
+  rollback    Rollback to previous version
+
+Options:
+  --help      Show help
+`
+	subcommands := tool.parseSubcommands(helpText)
+
+	expected := []string{"deploy", "status", "rollback"}
+	if len(subcommands) != len(expected) {
+		t.Errorf("expected %d subcommands, got %d: %v", len(expected), len(subcommands), subcommands)
+		return
+	}
+
+	for i, exp := range expected {
+		if subcommands[i] != exp {
+			t.Errorf("expected subcommand %q at index %d, got %q", exp, i, subcommands[i])
+		}
+	}
+}
+
+func TestIsValidSubcommand(t *testing.T) {
+	tests := []struct {
+		input string
+		valid bool
+	}{
+		{"deploy", true},
+		{"my-command", true},
+		{"cmd_name", true},
+		{"cmd123", true},
+		{"--flag", true}, // dashes are allowed, prefix check happens separately
+		{"cmd with space", false},
+		{"cmd@special", false},
+	}
+
+	for _, tt := range tests {
+		result := isValidSubcommand(tt.input)
+		if result != tt.valid {
+			t.Errorf("isValidSubcommand(%q) = %v, want %v", tt.input, result, tt.valid)
+		}
+	}
+}

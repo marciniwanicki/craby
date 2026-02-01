@@ -122,6 +122,19 @@ func ensureDaemonRunning(ctx context.Context, c *client.Client) error {
 	}
 }
 
+func printChatHelp() {
+	fmt.Printf("\n%sAvailable commands:%s\n", colorWhite, colorReset)
+	fmt.Printf("  %s/help%s        Show this help message\n", colorLightYellow, colorReset)
+	fmt.Printf("  %s/exit%s        Exit the chat\n", colorLightYellow, colorReset)
+	fmt.Printf("  %s/terminate%s   Stop the daemon and exit\n", colorLightYellow, colorReset)
+	fmt.Printf("  %s/tools%s       List available external tools\n", colorLightYellow, colorReset)
+	fmt.Printf("  %s/history%s     Show conversation history\n", colorLightYellow, colorReset)
+	fmt.Printf("  %s/context%s     Show current context\n", colorLightYellow, colorReset)
+	fmt.Printf("  %s/context <text>%s  Set context for the conversation\n", colorLightYellow, colorReset)
+	fmt.Printf("  %s/context clear%s   Clear the context\n", colorLightYellow, colorReset)
+	fmt.Println()
+}
+
 func printBanner(c *client.Client, ctx context.Context) {
 	// Print crab ASCII art in orange
 	fmt.Print(colorLightYellow)
@@ -173,6 +186,11 @@ func runREPL(ctx context.Context, c *client.Client, opts client.ChatOptions) err
 			break
 		}
 
+		if input == "/help" {
+			printChatHelp()
+			continue
+		}
+
 		if input == "/history" {
 			if err := c.PrintHistory(ctx); err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -213,6 +231,13 @@ func runREPL(ctx context.Context, c *client.Client, opts client.ChatOptions) err
 			}
 			fmt.Println("Goodbye!")
 			break
+		}
+
+		if input == "/tools" {
+			if err := printToolsCompact(); err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			}
+			continue
 		}
 
 		if err := c.Chat(ctx, input, os.Stdout, opts); err != nil {

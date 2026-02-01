@@ -61,6 +61,7 @@ Without arguments, starts interactive chat.`,
 	rootCmd.AddCommand(chat)
 	rootCmd.AddCommand(statusCmd())
 	rootCmd.AddCommand(stopCmd())
+	rootCmd.AddCommand(toolsCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
