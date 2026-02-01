@@ -96,7 +96,7 @@ func TestSaveAndLoad(t *testing.T) {
 	}
 
 	// Verify file was created
-	expectedPath := filepath.Join(tmpDir, ".crabby", "settings.json")
+	expectedPath := filepath.Join(tmpDir, ".craby", "settings.json")
 	if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
 		t.Fatalf("settings file was not created at %s", expectedPath)
 	}
@@ -140,7 +140,7 @@ func TestLoad_CreatesDefaultIfNotExists(t *testing.T) {
 	}
 
 	// File should exist now
-	expectedPath := filepath.Join(tmpDir, ".crabby", "settings.json")
+	expectedPath := filepath.Join(tmpDir, ".craby", "settings.json")
 	if _, err := os.Stat(expectedPath); os.IsNotExist(err) {
 		t.Error("settings file should have been created")
 	}
@@ -156,8 +156,8 @@ func TestConfigDir(t *testing.T) {
 		t.Error("ConfigDir() should return absolute path")
 	}
 
-	if !strings.HasSuffix(dir, ".crabby") {
-		t.Errorf("ConfigDir() = %q, should end with .crabby", dir)
+	if !strings.HasSuffix(dir, ".craby") {
+		t.Errorf("ConfigDir() = %q, should end with .craby", dir)
 	}
 }
 

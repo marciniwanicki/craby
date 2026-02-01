@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/marciniwanicki/crabby/internal/client"
+	"github.com/marciniwanicki/craby/internal/client"
 	"github.com/spf13/cobra"
 )
 
@@ -21,12 +21,12 @@ func main() {
 	chat := chatCmd()
 
 	rootCmd := &cobra.Command{
-		Use:   "crabby [message]",
+		Use:   "craby [message]",
 		Short: "An open-source personal AI assistant designed for experimental learning and daily utility.",
 		Long: `An open-source personal AI assistant designed for experimental learning and daily utility.
 
 If a message is provided, it will be sent as a one-shot query.
-Example: crabby "What is the weather today?"
+Example: craby "What is the weather today?"
 
 Without arguments, starts interactive chat.`,
 		// Allow arbitrary args so we can treat them as chat messages

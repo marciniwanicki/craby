@@ -12,7 +12,7 @@ import (
 
 	"github.com/charmbracelet/glamour"
 	"github.com/gorilla/websocket"
-	"github.com/marciniwanicki/crabby/internal/api"
+	"github.com/marciniwanicki/craby/internal/api"
 	"google.golang.org/protobuf/proto"
 )
 

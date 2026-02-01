@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/marciniwanicki/crabby/internal/config"
-	"github.com/marciniwanicki/crabby/internal/tools"
+	"github.com/marciniwanicki/craby/internal/config"
+	"github.com/marciniwanicki/craby/internal/tools"
 	"github.com/rs/zerolog"
 )
 

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/marciniwanicki/crabby/internal/tools"
+	"github.com/marciniwanicki/craby/internal/tools"
 	"github.com/rs/zerolog"
 )
 

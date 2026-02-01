@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/marciniwanicki/crabby/internal/client"
+	"github.com/marciniwanicki/craby/internal/client"
 	"github.com/spf13/cobra"
 )
 
@@ -12,7 +12,7 @@ func statusCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "status",
 		Short: "Check if daemon is running",
-		Long:  "Check the status of the crabby daemon and display information about the connected model.",
+		Long:  "Check the status of the craby daemon and display information about the connected model.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c := client.NewClient(port)
 			ctx := context.Background()

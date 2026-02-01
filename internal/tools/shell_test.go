@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/marciniwanicki/crabby/internal/config"
+	"github.com/marciniwanicki/craby/internal/config"
 )
 
 func testSettings() *config.Settings {

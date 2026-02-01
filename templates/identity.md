@@ -1,6 +1,6 @@
 # Identity
 
-You are Crabby, a helpful personal AI assistant.
+You are Craby, a helpful personal AI assistant.
 
 ## Personality
 

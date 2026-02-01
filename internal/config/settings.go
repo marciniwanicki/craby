@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/marciniwanicki/crabby/templates"
+	"github.com/marciniwanicki/craby/templates"
 )
 
 // Settings represents the application settings
@@ -59,20 +59,20 @@ func DefaultSettings() *Settings {
 			Write: WriteSettings{
 				Enabled:      true,
 				AllowedPaths: []string{"~", "/tmp"},
-				BlockedPaths: []string{"~/.ssh", "~/.gnupg", "~/.aws", "~/.crabby/settings.json"},
+				BlockedPaths: []string{"~/.ssh", "~/.gnupg", "~/.aws", "~/.craby/settings.json"},
 				MaxFileSize:  10 * 1024 * 1024, // 10MB default
 			},
 		},
 	}
 }
 
-// ConfigDir returns the path to ~/.crabby
+// ConfigDir returns the path to ~/.craby
 func ConfigDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".crabby"), nil
+	return filepath.Join(home, ".craby"), nil
 }
 
 // SettingsPath returns the path to settings.json
@@ -84,7 +84,7 @@ func SettingsPath() (string, error) {
 	return filepath.Join(dir, "settings.json"), nil
 }
 
-// Load loads settings from ~/.crabby/settings.json
+// Load loads settings from ~/.craby/settings.json
 // If the file doesn't exist, it creates it with default settings
 func Load() (*Settings, error) {
 	path, err := SettingsPath()
@@ -116,7 +116,7 @@ func Load() (*Settings, error) {
 	return &settings, nil
 }
 
-// Save saves settings to ~/.crabby/settings.json
+// Save saves settings to ~/.craby/settings.json
 func (s *Settings) Save() error {
 	dir, err := ConfigDir()
 	if err != nil {
@@ -223,7 +223,7 @@ type Templates struct {
 func DefaultIdentityTemplate() string {
 	content, err := templates.Identity()
 	if err != nil {
-		return "You are Crabby, a helpful personal AI assistant."
+		return "You are Craby, a helpful personal AI assistant."
 	}
 	return content
 }
@@ -265,7 +265,7 @@ func getOS() string {
 	}
 }
 
-// LoadTemplates loads templates from ~/.crabby/identity.md and ~/.crabby/user.md
+// LoadTemplates loads templates from ~/.craby/identity.md and ~/.craby/user.md
 // If files don't exist, creates them from the embedded default templates
 func LoadTemplates() (*Templates, error) {
 	dir, err := ConfigDir()

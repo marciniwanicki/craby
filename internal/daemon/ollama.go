@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/marciniwanicki/crabby/internal/agent"
-	"github.com/marciniwanicki/crabby/internal/config"
+	"github.com/marciniwanicki/craby/internal/agent"
+	"github.com/marciniwanicki/craby/internal/config"
 )
 
 // OllamaClient handles communication with the Ollama API

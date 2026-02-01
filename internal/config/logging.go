@@ -35,7 +35,7 @@ func DefaultLogConfig() LogConfig {
 	}
 }
 
-// LogsDir returns the path to ~/.crabby/logs/
+// LogsDir returns the path to ~/.craby/logs/
 func LogsDir() (string, error) {
 	dir, err := ConfigDir()
 	if err != nil {
@@ -56,7 +56,7 @@ func SetupLogger(cfg LogConfig) (zerolog.Logger, io.Closer, error) {
 		return zerolog.Logger{}, nil, fmt.Errorf("failed to create logs directory: %w", err)
 	}
 
-	logPath := filepath.Join(logsDir, "crabby.log")
+	logPath := filepath.Join(logsDir, "craby.log")
 
 	// Delete existing log file to start fresh each daemon session
 	_ = os.Remove(logPath)
@@ -95,7 +95,7 @@ func SetupFileOnlyLogger(cfg LogConfig) (zerolog.Logger, io.Closer, error) {
 		return zerolog.Logger{}, nil, fmt.Errorf("failed to create logs directory: %w", err)
 	}
 
-	logPath := filepath.Join(logsDir, "crabby.log")
+	logPath := filepath.Join(logsDir, "craby.log")
 
 	// Delete existing log file to start fresh each daemon session
 	_ = os.Remove(logPath)

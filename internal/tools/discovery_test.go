@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/marciniwanicki/crabby/internal/config"
+	"github.com/marciniwanicki/craby/internal/config"
 )
 
 func TestListCommandsTool_Name(t *testing.T) {

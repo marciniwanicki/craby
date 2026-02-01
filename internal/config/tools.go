@@ -8,7 +8,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// ExternalTool represents a tool defined in ~/.crabby/tools/
+// ExternalTool represents a tool defined in ~/.craby/tools/
 type ExternalTool struct {
 	Name        string            `yaml:"name"`
 	Description string            `yaml:"description"`
@@ -51,7 +51,7 @@ type ToolSubcommand struct {
 	Example     string   `yaml:"example,omitempty"`
 }
 
-// ToolsDir returns the path to ~/.crabby/tools/
+// ToolsDir returns the path to ~/.craby/tools/
 func ToolsDir() (string, error) {
 	dir, err := ConfigDir()
 	if err != nil {
@@ -60,7 +60,7 @@ func ToolsDir() (string, error) {
 	return filepath.Join(dir, "tools"), nil
 }
 
-// LoadExternalTools loads all tool definitions from ~/.crabby/tools/
+// LoadExternalTools loads all tool definitions from ~/.craby/tools/
 func LoadExternalTools() ([]*ExternalTool, error) {
 	toolsDir, err := ToolsDir()
 	if err != nil {
@@ -118,7 +118,7 @@ func LoadExternalTools() ([]*ExternalTool, error) {
 
 // loadToolFromYAML loads a single tool definition from a YAML file
 func loadToolFromYAML(path string) (*ExternalTool, error) {
-	// Path is constructed from trusted config directory (~/.crabby/tools/)
+	// Path is constructed from trusted config directory (~/.craby/tools/)
 	data, err := os.ReadFile(path) //nolint:gosec // G304: path is from user's config dir
 	if err != nil {
 		return nil, err

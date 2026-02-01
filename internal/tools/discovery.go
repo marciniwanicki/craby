@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/marciniwanicki/crabby/internal/config"
+	"github.com/marciniwanicki/craby/internal/config"
 )
 
 const discoverySchemaTimeout = 30 * time.Second

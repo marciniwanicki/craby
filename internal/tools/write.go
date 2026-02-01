@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/marciniwanicki/crabby/internal/config"
+	"github.com/marciniwanicki/craby/internal/config"
 )
 
 // WriteTool writes content to files

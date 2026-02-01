@@ -39,7 +39,7 @@ func NewSchemaCache() (*SchemaCache, error) {
 	}, nil
 }
 
-// SchemaCacheDir returns the path to ~/.crabby/cache/schemas/
+// SchemaCacheDir returns the path to ~/.craby/cache/schemas/
 func SchemaCacheDir() (string, error) {
 	dir, err := ConfigDir()
 	if err != nil {

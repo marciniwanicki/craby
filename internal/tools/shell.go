@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/marciniwanicki/crabby/internal/config"
+	"github.com/marciniwanicki/craby/internal/config"
 )
 
 const shellTimeout = 30 * time.Second

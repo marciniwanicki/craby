@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/marciniwanicki/crabby/internal/config"
+	"github.com/marciniwanicki/craby/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -11,7 +11,7 @@ func toolsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "tools",
 		Short: "List loaded external tools",
-		Long:  "Display all external tools loaded from ~/.crabby/tools/ with their status and descriptions.",
+		Long:  "Display all external tools loaded from ~/.craby/tools/ with their status and descriptions.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return printTools()
 		},
@@ -29,7 +29,7 @@ func printTools() error {
 
 	if len(allTools) == 0 {
 		fmt.Printf("%sNo external tools found.%s\n", colorGray, colorReset)
-		fmt.Printf("%sAdd tools to ~/.crabby/tools/<name>/<name>.yaml%s\n", colorGray, colorReset)
+		fmt.Printf("%sAdd tools to ~/.craby/tools/<name>/<name>.yaml%s\n", colorGray, colorReset)
 		return nil
 	}
 
@@ -113,7 +113,7 @@ func printToolsCompact() error {
 
 	if len(allTools) == 0 {
 		fmt.Printf("%sNo external tools configured.%s\n", colorGray, colorReset)
-		fmt.Printf("%sAdd tools to ~/.crabby/tools/<name>/<name>.yaml%s\n\n", colorGray, colorReset)
+		fmt.Printf("%sAdd tools to ~/.craby/tools/<name>/<name>.yaml%s\n\n", colorGray, colorReset)
 		return nil
 	}
 

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 make ready      # Pre-PR checklist: format → proto → lint → test → build
-make build      # Compile binary to ./crabby
+make build      # Compile binary to ./craby
 make test       # Run tests with race detection: go test -v -race ./...
 make lint       # Run golangci-lint
 make format     # Format with goimports
@@ -19,15 +19,15 @@ Run a single test: `go test -v -race ./internal/agent -run TestAgentLoop`
 
 ## Architecture
 
-Crabby is a daemon-based AI assistant using WebSocket communication and Ollama for local LLM inference.
+Craby is a daemon-based AI assistant using WebSocket communication and Ollama for local LLM inference.
 
 ```
-CLI (crabby) ←── WebSocket/Protobuf ──→ Daemon (crabbyd) ←── HTTP ──→ Ollama
+CLI (craby) ←── WebSocket/Protobuf ──→ Daemon (crabyd) ←── HTTP ──→ Ollama
 ```
 
 ### Key Layers
 
-- **CLI** (`cmd/crabby/`): Cobra commands - chat, daemon, status, stop
+- **CLI** (`cmd/craby/`): Cobra commands - chat, daemon, status, stop
 - **Client** (`internal/client/`): WebSocket connection, protobuf encoding, response streaming
 - **Daemon** (`internal/daemon/`): HTTP/WebSocket server, Ollama client integration
 - **Agent** (`internal/agent/`): LLM + tool execution loop (max 10 iterations), event streaming
@@ -46,7 +46,7 @@ Tools implement the `Tool` interface (Name, Description, Parameters, Execute). T
 
 ### Configuration
 
-User config lives in `~/.crabby/`:
+User config lives in `~/.craby/`:
 - `settings.json`: tool permissions, shell allowlist
 - `identity.md`, `user.md`: AI personality templates (auto-created from `templates/`)
 

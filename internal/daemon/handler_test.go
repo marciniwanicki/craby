@@ -3,8 +3,8 @@ package daemon
 import (
 	"testing"
 
-	"github.com/marciniwanicki/crabby/internal/agent"
-	"github.com/marciniwanicki/crabby/internal/tools"
+	"github.com/marciniwanicki/craby/internal/agent"
+	"github.com/marciniwanicki/craby/internal/tools"
 	"github.com/rs/zerolog"
 )
 

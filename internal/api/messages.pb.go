@@ -7,11 +7,12 @@
 package api
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -323,7 +324,7 @@ func (x *ShellCommand) GetIsDiscovery() bool {
 type TextChunk struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Content       string                 `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`
-	Role          Role                   `protobuf:"varint,2,opt,name=role,proto3,enum=crabby.api.v1.Role" json:"role,omitempty"`
+	Role          Role                   `protobuf:"varint,2,opt,name=role,proto3,enum=craby.api.v1.Role" json:"role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -598,7 +599,7 @@ func (x *StatusResponse) GetVersion() string {
 
 type HistoryMessage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Role          Role                   `protobuf:"varint,1,opt,name=role,proto3,enum=crabby.api.v1.Role" json:"role,omitempty"`
+	Role          Role                   `protobuf:"varint,1,opt,name=role,proto3,enum=craby.api.v1.Role" json:"role,omitempty"`
 	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -993,26 +994,26 @@ var File_internal_api_messages_proto protoreflect.FileDescriptor
 
 const file_internal_api_messages_proto_rawDesc = "" +
 	"\n" +
-	"\x1binternal/api/messages.proto\x12\rcrabby.api.v1\"F\n" +
+	"\x1binternal/api/messages.proto\x12\fcraby.api.v1\"F\n" +
 	"\vChatRequest\x12\x18\n" +
 	"\amessage\x18\x01 \x01(\tR\amessage\x12\x1d\n" +
 	"\n" +
-	"session_id\x18\x02 \x01(\tR\tsessionId\"\xb1\x02\n" +
-	"\fChatResponse\x12.\n" +
-	"\x04text\x18\x01 \x01(\v2\x18.crabby.api.v1.TextChunkH\x00R\x04text\x126\n" +
-	"\ttool_call\x18\x02 \x01(\v2\x17.crabby.api.v1.ToolCallH\x00R\btoolCall\x12<\n" +
-	"\vtool_result\x18\x03 \x01(\v2\x19.crabby.api.v1.ToolResultH\x00R\n" +
+	"session_id\x18\x02 \x01(\tR\tsessionId\"\xad\x02\n" +
+	"\fChatResponse\x12-\n" +
+	"\x04text\x18\x01 \x01(\v2\x17.craby.api.v1.TextChunkH\x00R\x04text\x125\n" +
+	"\ttool_call\x18\x02 \x01(\v2\x16.craby.api.v1.ToolCallH\x00R\btoolCall\x12;\n" +
+	"\vtool_result\x18\x03 \x01(\v2\x18.craby.api.v1.ToolResultH\x00R\n" +
 	"toolResult\x12\x14\n" +
 	"\x04done\x18\x04 \x01(\bH\x00R\x04done\x12\x16\n" +
-	"\x05error\x18\x05 \x01(\tH\x00R\x05error\x12B\n" +
-	"\rshell_command\x18\x06 \x01(\v2\x1b.crabby.api.v1.ShellCommandH\x00R\fshellCommandB\t\n" +
+	"\x05error\x18\x05 \x01(\tH\x00R\x05error\x12A\n" +
+	"\rshell_command\x18\x06 \x01(\v2\x1a.craby.api.v1.ShellCommandH\x00R\fshellCommandB\t\n" +
 	"\apayload\"K\n" +
 	"\fShellCommand\x12\x18\n" +
 	"\acommand\x18\x01 \x01(\tR\acommand\x12!\n" +
-	"\fis_discovery\x18\x02 \x01(\bR\visDiscovery\"N\n" +
+	"\fis_discovery\x18\x02 \x01(\bR\visDiscovery\"M\n" +
 	"\tTextChunk\x12\x18\n" +
-	"\acontent\x18\x01 \x01(\tR\acontent\x12'\n" +
-	"\x04role\x18\x02 \x01(\x0e2\x13.crabby.api.v1.RoleR\x04role\"L\n" +
+	"\acontent\x18\x01 \x01(\tR\acontent\x12&\n" +
+	"\x04role\x18\x02 \x01(\x0e2\x12.craby.api.v1.RoleR\x04role\"L\n" +
 	"\bToolCall\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1c\n" +
@@ -1027,12 +1028,12 @@ const file_internal_api_messages_proto_rawDesc = "" +
 	"\x0eStatusResponse\x12\x18\n" +
 	"\ahealthy\x18\x01 \x01(\bR\ahealthy\x12\x14\n" +
 	"\x05model\x18\x02 \x01(\tR\x05model\x12\x18\n" +
-	"\aversion\x18\x03 \x01(\tR\aversion\"S\n" +
-	"\x0eHistoryMessage\x12'\n" +
-	"\x04role\x18\x01 \x01(\x0e2\x13.crabby.api.v1.RoleR\x04role\x12\x18\n" +
-	"\acontent\x18\x02 \x01(\tR\acontent\"L\n" +
-	"\x0fHistoryResponse\x129\n" +
-	"\bmessages\x18\x01 \x03(\v2\x1d.crabby.api.v1.HistoryMessageR\bmessages\"*\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\"R\n" +
+	"\x0eHistoryMessage\x12&\n" +
+	"\x04role\x18\x01 \x01(\x0e2\x12.craby.api.v1.RoleR\x04role\x12\x18\n" +
+	"\acontent\x18\x02 \x01(\tR\acontent\"K\n" +
+	"\x0fHistoryResponse\x128\n" +
+	"\bmessages\x18\x01 \x03(\v2\x1c.craby.api.v1.HistoryMessageR\bmessages\"*\n" +
 	"\x0eContextRequest\x12\x18\n" +
 	"\acontext\x18\x01 \x01(\tR\acontext\"+\n" +
 	"\x0fContextResponse\x12\x18\n" +
@@ -1043,9 +1044,9 @@ const file_internal_api_messages_proto_rawDesc = "" +
 	"\x0fToolRunResponse\x12\x16\n" +
 	"\x06output\x18\x01 \x01(\tR\x06output\x12\x18\n" +
 	"\asuccess\x18\x02 \x01(\bR\asuccess\x12\x14\n" +
-	"\x05error\x18\x03 \x01(\tR\x05error\"A\n" +
-	"\x10ToolListResponse\x12-\n" +
-	"\x05tools\x18\x01 \x03(\v2\x17.crabby.api.v1.ToolInfoR\x05tools\"@\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\"@\n" +
+	"\x10ToolListResponse\x12,\n" +
+	"\x05tools\x18\x01 \x03(\v2\x16.craby.api.v1.ToolInfoR\x05tools\"@\n" +
 	"\bToolInfo\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription*+\n" +
@@ -1053,7 +1054,7 @@ const file_internal_api_messages_proto_rawDesc = "" +
 	"\tASSISTANT\x10\x00\x12\n" +
 	"\n" +
 	"\x06SYSTEM\x10\x01\x12\b\n" +
-	"\x04USER\x10\x02B/Z-github.com/marciniwanicki/crabby/internal/apib\x06proto3"
+	"\x04USER\x10\x02B.Z,github.com/marciniwanicki/craby/internal/apib\x06proto3"
 
 var (
 	file_internal_api_messages_proto_rawDescOnce sync.Once
@@ -1070,33 +1071,33 @@ func file_internal_api_messages_proto_rawDescGZIP() []byte {
 var file_internal_api_messages_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_internal_api_messages_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_internal_api_messages_proto_goTypes = []any{
-	(Role)(0),                // 0: crabby.api.v1.Role
-	(*ChatRequest)(nil),      // 1: crabby.api.v1.ChatRequest
-	(*ChatResponse)(nil),     // 2: crabby.api.v1.ChatResponse
-	(*ShellCommand)(nil),     // 3: crabby.api.v1.ShellCommand
-	(*TextChunk)(nil),        // 4: crabby.api.v1.TextChunk
-	(*ToolCall)(nil),         // 5: crabby.api.v1.ToolCall
-	(*ToolResult)(nil),       // 6: crabby.api.v1.ToolResult
-	(*StatusRequest)(nil),    // 7: crabby.api.v1.StatusRequest
-	(*StatusResponse)(nil),   // 8: crabby.api.v1.StatusResponse
-	(*HistoryMessage)(nil),   // 9: crabby.api.v1.HistoryMessage
-	(*HistoryResponse)(nil),  // 10: crabby.api.v1.HistoryResponse
-	(*ContextRequest)(nil),   // 11: crabby.api.v1.ContextRequest
-	(*ContextResponse)(nil),  // 12: crabby.api.v1.ContextResponse
-	(*ToolRunRequest)(nil),   // 13: crabby.api.v1.ToolRunRequest
-	(*ToolRunResponse)(nil),  // 14: crabby.api.v1.ToolRunResponse
-	(*ToolListResponse)(nil), // 15: crabby.api.v1.ToolListResponse
-	(*ToolInfo)(nil),         // 16: crabby.api.v1.ToolInfo
+	(Role)(0),                // 0: craby.api.v1.Role
+	(*ChatRequest)(nil),      // 1: craby.api.v1.ChatRequest
+	(*ChatResponse)(nil),     // 2: craby.api.v1.ChatResponse
+	(*ShellCommand)(nil),     // 3: craby.api.v1.ShellCommand
+	(*TextChunk)(nil),        // 4: craby.api.v1.TextChunk
+	(*ToolCall)(nil),         // 5: craby.api.v1.ToolCall
+	(*ToolResult)(nil),       // 6: craby.api.v1.ToolResult
+	(*StatusRequest)(nil),    // 7: craby.api.v1.StatusRequest
+	(*StatusResponse)(nil),   // 8: craby.api.v1.StatusResponse
+	(*HistoryMessage)(nil),   // 9: craby.api.v1.HistoryMessage
+	(*HistoryResponse)(nil),  // 10: craby.api.v1.HistoryResponse
+	(*ContextRequest)(nil),   // 11: craby.api.v1.ContextRequest
+	(*ContextResponse)(nil),  // 12: craby.api.v1.ContextResponse
+	(*ToolRunRequest)(nil),   // 13: craby.api.v1.ToolRunRequest
+	(*ToolRunResponse)(nil),  // 14: craby.api.v1.ToolRunResponse
+	(*ToolListResponse)(nil), // 15: craby.api.v1.ToolListResponse
+	(*ToolInfo)(nil),         // 16: craby.api.v1.ToolInfo
 }
 var file_internal_api_messages_proto_depIdxs = []int32{
-	4,  // 0: crabby.api.v1.ChatResponse.text:type_name -> crabby.api.v1.TextChunk
-	5,  // 1: crabby.api.v1.ChatResponse.tool_call:type_name -> crabby.api.v1.ToolCall
-	6,  // 2: crabby.api.v1.ChatResponse.tool_result:type_name -> crabby.api.v1.ToolResult
-	3,  // 3: crabby.api.v1.ChatResponse.shell_command:type_name -> crabby.api.v1.ShellCommand
-	0,  // 4: crabby.api.v1.TextChunk.role:type_name -> crabby.api.v1.Role
-	0,  // 5: crabby.api.v1.HistoryMessage.role:type_name -> crabby.api.v1.Role
-	9,  // 6: crabby.api.v1.HistoryResponse.messages:type_name -> crabby.api.v1.HistoryMessage
-	16, // 7: crabby.api.v1.ToolListResponse.tools:type_name -> crabby.api.v1.ToolInfo
+	4,  // 0: craby.api.v1.ChatResponse.text:type_name -> craby.api.v1.TextChunk
+	5,  // 1: craby.api.v1.ChatResponse.tool_call:type_name -> craby.api.v1.ToolCall
+	6,  // 2: craby.api.v1.ChatResponse.tool_result:type_name -> craby.api.v1.ToolResult
+	3,  // 3: craby.api.v1.ChatResponse.shell_command:type_name -> craby.api.v1.ShellCommand
+	0,  // 4: craby.api.v1.TextChunk.role:type_name -> craby.api.v1.Role
+	0,  // 5: craby.api.v1.HistoryMessage.role:type_name -> craby.api.v1.Role
+	9,  // 6: craby.api.v1.HistoryResponse.messages:type_name -> craby.api.v1.HistoryMessage
+	16, // 7: craby.api.v1.ToolListResponse.tools:type_name -> craby.api.v1.ToolInfo
 	8,  // [8:8] is the sub-list for method output_type
 	8,  // [8:8] is the sub-list for method input_type
 	8,  // [8:8] is the sub-list for extension type_name

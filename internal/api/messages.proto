@@ -1,6 +1,6 @@
 syntax = "proto3";
-package crabby.api.v1;
-option go_package = "github.com/marciniwanicki/crabby/internal/api";
+package craby.api.v1;
+option go_package = "github.com/marciniwanicki/craby/internal/api";
 
 message ChatRequest {
   string message = 1;

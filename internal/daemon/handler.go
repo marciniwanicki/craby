@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/gorilla/websocket"
-	"github.com/marciniwanicki/crabby/internal/agent"
-	"github.com/marciniwanicki/crabby/internal/api"
-	"github.com/marciniwanicki/crabby/internal/tools"
+	"github.com/marciniwanicki/craby/internal/agent"
+	"github.com/marciniwanicki/craby/internal/api"
+	"github.com/marciniwanicki/craby/internal/tools"
 	"github.com/rs/zerolog"
 	"google.golang.org/protobuf/proto"
 )

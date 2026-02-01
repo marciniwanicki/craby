@@ -31,6 +31,6 @@ go.work.sum
 # .idea/
 # .vscode/
 
-# Crabby binary (root level only)
-/crabby
+# Craby binary (root level only)
+/craby
 

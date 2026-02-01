@@ -1,7 +1,7 @@
 .PHONY: build proto clean install deps format lint test ready help
 
 # Binary names
-BINARY_NAME=crabby
+BINARY_NAME=craby
 
 # Go parameters
 GOCMD=go
@@ -21,8 +21,8 @@ LDFLAGS=-ldflags "-s -w"
 
 all: proto build ## Build everything (proto + binary)
 
-build: ## Build the crabby binary
-	$(GOBUILD) $(LDFLAGS) -o $(BINARY_NAME) ./cmd/crabby
+build: ## Build the craby binary
+	$(GOBUILD) $(LDFLAGS) -o $(BINARY_NAME) ./cmd/craby
 
 proto: ## Generate protobuf Go code
 	$(PROTOC) --go_out=. --go_opt=paths=source_relative $(PROTO_FILES)

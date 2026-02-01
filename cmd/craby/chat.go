@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/marciniwanicki/crabby/internal/client"
+	"github.com/marciniwanicki/craby/internal/client"
 	"github.com/spf13/cobra"
 )
 
