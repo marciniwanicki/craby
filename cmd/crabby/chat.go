@@ -135,7 +135,7 @@ func printBanner(c *client.Client, ctx context.Context) {
 	}
 
 	// Instructions in gray
-	fmt.Printf("%sType '/exit' to leave  •  Ctrl+C to interrupt%s\n\n", colorGray, colorReset)
+	fmt.Printf("%sType '/exit' to leave  •  '/terminate' to stop daemon  •  Ctrl+C to interrupt%s\n\n", colorGray, colorReset)
 }
 
 func runREPL(ctx context.Context, c *client.Client, opts client.ChatOptions) error {
@@ -203,6 +203,16 @@ func runREPL(ctx context.Context, c *client.Client, opts client.ChatOptions) err
 				fmt.Printf("%sContext set.%s\n\n", colorGray, colorReset)
 			}
 			continue
+		}
+
+		if input == "/terminate" {
+			if err := c.Shutdown(ctx); err != nil {
+				fmt.Fprintf(os.Stderr, "Error stopping daemon: %v\n", err)
+			} else {
+				fmt.Println("Daemon stopped.")
+			}
+			fmt.Println("Goodbye!")
+			break
 		}
 
 		if err := c.Chat(ctx, input, os.Stdout, opts); err != nil {

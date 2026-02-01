@@ -1,6 +1,10 @@
 package client
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -161,4 +165,137 @@ func TestVerbosityConstants(t *testing.T) {
 	if VerbosityQuiet == VerbosityVerbose {
 		t.Error("VerbosityQuiet should not equal VerbosityVerbose")
 	}
+}
+
+func TestIsRunning_DaemonRunning(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" && r.Method == http.MethodGet {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	port := extractPort(t, server.URL)
+	client := NewClient(port)
+
+	if !client.IsRunning(context.Background()) {
+		t.Error("expected IsRunning to return true when daemon responds with 200")
+	}
+}
+
+func TestIsRunning_DaemonNotRunning(t *testing.T) {
+	// Use a port that's definitely not listening
+	client := NewClient(59999)
+
+	if client.IsRunning(context.Background()) {
+		t.Error("expected IsRunning to return false when daemon is not running")
+	}
+}
+
+func TestIsRunning_DaemonReturnsError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	port := extractPort(t, server.URL)
+	client := NewClient(port)
+
+	if client.IsRunning(context.Background()) {
+		t.Error("expected IsRunning to return false when daemon returns 500")
+	}
+}
+
+func TestShutdown_Success(t *testing.T) {
+	shutdownCalled := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/shutdown" && r.Method == http.MethodPost {
+			shutdownCalled = true
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	port := extractPort(t, server.URL)
+	client := NewClient(port)
+
+	err := client.Shutdown(context.Background())
+	if err != nil {
+		t.Errorf("expected no error, got: %v", err)
+	}
+
+	if !shutdownCalled {
+		t.Error("expected shutdown endpoint to be called")
+	}
+}
+
+func TestShutdown_DaemonNotRunning(t *testing.T) {
+	// Use a port that's definitely not listening
+	client := NewClient(59999)
+
+	err := client.Shutdown(context.Background())
+	if err == nil {
+		t.Error("expected error when daemon is not running")
+	}
+
+	if !strings.Contains(err.Error(), "failed to connect to daemon") {
+		t.Errorf("expected connection error, got: %v", err)
+	}
+}
+
+func TestShutdown_DaemonReturnsError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	port := extractPort(t, server.URL)
+	client := NewClient(port)
+
+	err := client.Shutdown(context.Background())
+	if err == nil {
+		t.Error("expected error when daemon returns 500")
+	}
+
+	if !strings.Contains(err.Error(), "status 500") {
+		t.Errorf("expected status error, got: %v", err)
+	}
+}
+
+func TestShutdown_ContextCanceled(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Simulate slow response - won't matter since context is canceled
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	port := extractPort(t, server.URL)
+	client := NewClient(port)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+
+	err := client.Shutdown(ctx)
+	if err == nil {
+		t.Error("expected error when context is canceled")
+	}
+}
+
+// extractPort extracts the port number from an httptest server URL
+func extractPort(t *testing.T, url string) int {
+	t.Helper()
+	// URL format: http://127.0.0.1:PORT
+	parts := strings.Split(url, ":")
+	if len(parts) < 3 {
+		t.Fatalf("unexpected URL format: %s", url)
+	}
+	port, err := strconv.Atoi(parts[2])
+	if err != nil {
+		t.Fatalf("failed to parse port from URL %s: %v", url, err)
+	}
+	return port
 }
