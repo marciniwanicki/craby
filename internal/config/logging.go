@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -114,8 +115,8 @@ func SetupFileOnlyLogger(cfg LogConfig) (zerolog.Logger, io.Closer, error) {
 	return logger, fileWriter, nil
 }
 
-// ClearLLMCallLogs removes all .md files from the logs directory
-func ClearLLMCallLogs() error {
+// ClearStepLogs removes all step_*.md files from the logs directory
+func ClearStepLogs() error {
 	logsDir, err := LogsDir()
 	if err != nil {
 		return err
@@ -130,7 +131,7 @@ func ClearLLMCallLogs() error {
 	}
 
 	for _, entry := range entries {
-		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".md") {
+		if !entry.IsDir() && strings.HasPrefix(entry.Name(), "step_") && strings.HasSuffix(entry.Name(), ".md") {
 			_ = os.Remove(filepath.Join(logsDir, entry.Name()))
 		}
 	}
@@ -138,15 +139,29 @@ func ClearLLMCallLogs() error {
 	return nil
 }
 
-// LLMCallLogger logs LLM calls to separate markdown files
-type LLMCallLogger struct {
+// Deprecated: use ClearStepLogs instead
+func ClearLLMCallLogs() error {
+	return ClearStepLogs()
+}
+
+// StepType represents the type of pipeline step being logged
+type StepType string
+
+const (
+	StepTypeLLM       StepType = "llm"       // LLM calls (planning, synthesis, schema discovery)
+	StepTypePlan      StepType = "plan"      // Generated plan
+	StepTypeExecution StepType = "execution" // Tool execution
+)
+
+// StepLogger logs pipeline steps to separate markdown files with sequential numbering
+type StepLogger struct {
 	logsDir string
 	index   int
 	mu      sync.Mutex
 }
 
-// NewLLMCallLogger creates a new LLM call logger
-func NewLLMCallLogger() (*LLMCallLogger, error) {
+// NewStepLogger creates a new step logger
+func NewStepLogger() (*StepLogger, error) {
 	logsDir, err := LogsDir()
 	if err != nil {
 		return nil, err
@@ -156,15 +171,22 @@ func NewLLMCallLogger() (*LLMCallLogger, error) {
 		return nil, err
 	}
 
-	return &LLMCallLogger{
+	return &StepLogger{
 		logsDir: logsDir,
 		index:   0,
 	}, nil
 }
 
-// LLMCallLog represents a single LLM call to be logged
-type LLMCallLog struct {
-	Type       string           // "chat", "chat_with_tools", "simple_chat"
+// Reset resets the step counter (typically called at start of new request)
+func (l *StepLogger) Reset() {
+	l.mu.Lock()
+	l.index = 0
+	l.mu.Unlock()
+}
+
+// LLMStepLog represents a single LLM call to be logged
+type LLMStepLog struct {
+	Phase      string           // "planning", "synthesis", "schema_discovery", etc.
 	Model      string           // Model name
 	Messages   []LLMMessageLog  // Input messages
 	Tools      []string         // Tool names if any
@@ -186,28 +208,65 @@ type LLMToolCallLog struct {
 	Arguments string
 }
 
-// Log writes an LLM call to a markdown file
-func (l *LLMCallLogger) Log(call LLMCallLog) error {
+// PlanStepLog represents a generated plan to be logged
+type PlanStepLog struct {
+	Intent        string
+	Complexity    string
+	NeedsTools    bool
+	ReadyToAnswer bool
+	Context       []string
+	Steps         []PlanStepEntry
+	RawXML        string
+}
+
+// PlanStepEntry represents a single step in the plan
+type PlanStepEntry struct {
+	ID        string
+	DependsOn string
+	Tool      string
+	Purpose   string
+	Args      map[string]string
+}
+
+// ExecutionStepLog represents a tool execution to be logged
+type ExecutionStepLog struct {
+	StepID     string
+	Tool       string
+	Purpose    string
+	Args       map[string]any
+	Output     string
+	Success    bool
+	Error      string
+	DurationMs int64
+}
+
+// nextIndex returns the next step index and increments the counter
+func (l *StepLogger) nextIndex() int {
 	l.mu.Lock()
 	index := l.index
 	l.index++
 	l.mu.Unlock()
+	return index
+}
 
-	filename := fmt.Sprintf("llm_call_%d.md", index)
-	filepath := filepath.Join(l.logsDir, filename)
+// LogLLM logs an LLM call step
+func (l *StepLogger) LogLLM(log LLMStepLog) error {
+	index := l.nextIndex()
+	filename := fmt.Sprintf("step_%03d_llm_%s.md", index, sanitizeFilename(log.Phase))
+	fpath := filepath.Join(l.logsDir, filename)
 
 	var sb strings.Builder
 
 	// Header
-	sb.WriteString(fmt.Sprintf("# LLM Call %d\n\n", index))
-	sb.WriteString(fmt.Sprintf("**Type:** %s  \n", call.Type))
-	sb.WriteString(fmt.Sprintf("**Model:** %s  \n", call.Model))
+	sb.WriteString(fmt.Sprintf("# Step %03d: LLM Call (%s)\n\n", index, log.Phase))
+	sb.WriteString(fmt.Sprintf("**Phase:** %s  \n", log.Phase))
+	sb.WriteString(fmt.Sprintf("**Model:** %s  \n", log.Model))
 	sb.WriteString(fmt.Sprintf("**Time:** %s  \n", time.Now().Format(time.RFC3339)))
-	sb.WriteString(fmt.Sprintf("**Duration:** %dms  \n\n", call.DurationMs))
+	sb.WriteString(fmt.Sprintf("**Duration:** %dms  \n\n", log.DurationMs))
 
 	// Input messages
 	sb.WriteString("## Input Messages\n\n")
-	for i, msg := range call.Messages {
+	for i, msg := range log.Messages {
 		sb.WriteString(fmt.Sprintf("### Message %d (%s)\n\n", i, msg.Role))
 		sb.WriteString("```\n")
 		sb.WriteString(msg.Content)
@@ -215,9 +274,9 @@ func (l *LLMCallLogger) Log(call LLMCallLog) error {
 	}
 
 	// Tools if any
-	if len(call.Tools) > 0 {
+	if len(log.Tools) > 0 {
 		sb.WriteString("## Tools Available\n\n")
-		for _, tool := range call.Tools {
+		for _, tool := range log.Tools {
 			sb.WriteString(fmt.Sprintf("- %s\n", tool))
 		}
 		sb.WriteString("\n")
@@ -225,19 +284,19 @@ func (l *LLMCallLogger) Log(call LLMCallLog) error {
 
 	// Response
 	sb.WriteString("## Response\n\n")
-	if call.Error != "" {
-		sb.WriteString(fmt.Sprintf("**Error:** %s\n\n", call.Error))
+	if log.Error != "" {
+		sb.WriteString(fmt.Sprintf("**Error:** %s\n\n", log.Error))
 	} else {
-		if call.Response != "" {
+		if log.Response != "" {
 			sb.WriteString("### Content\n\n")
 			sb.WriteString("```\n")
-			sb.WriteString(call.Response)
+			sb.WriteString(log.Response)
 			sb.WriteString("\n```\n\n")
 		}
 
-		if len(call.ToolCalls) > 0 {
+		if len(log.ToolCalls) > 0 {
 			sb.WriteString("### Tool Calls\n\n")
-			for i, tc := range call.ToolCalls {
+			for i, tc := range log.ToolCalls {
 				sb.WriteString(fmt.Sprintf("#### Tool Call %d: %s\n\n", i, tc.Name))
 				sb.WriteString("```json\n")
 				sb.WriteString(tc.Arguments)
@@ -247,5 +306,129 @@ func (l *LLMCallLogger) Log(call LLMCallLog) error {
 	}
 
 	//nolint:gosec // Log files in user's config directory
-	return os.WriteFile(filepath, []byte(sb.String()), 0640)
+	return os.WriteFile(fpath, []byte(sb.String()), 0640)
+}
+
+// LogPlan logs a generated plan
+func (l *StepLogger) LogPlan(log PlanStepLog) error {
+	index := l.nextIndex()
+	filename := fmt.Sprintf("step_%03d_plan.md", index)
+	fpath := filepath.Join(l.logsDir, filename)
+
+	var sb strings.Builder
+
+	// Header
+	sb.WriteString(fmt.Sprintf("# Step %03d: Plan Generated\n\n", index))
+	sb.WriteString(fmt.Sprintf("**Time:** %s  \n\n", time.Now().Format(time.RFC3339)))
+
+	// Plan overview
+	sb.WriteString("## Overview\n\n")
+	sb.WriteString(fmt.Sprintf("**Intent:** %s  \n", log.Intent))
+	sb.WriteString(fmt.Sprintf("**Complexity:** %s  \n", log.Complexity))
+	sb.WriteString(fmt.Sprintf("**Needs Tools:** %t  \n", log.NeedsTools))
+	sb.WriteString(fmt.Sprintf("**Ready to Answer:** %t  \n\n", log.ReadyToAnswer))
+
+	// Context
+	if len(log.Context) > 0 {
+		sb.WriteString("## Context\n\n")
+		for _, item := range log.Context {
+			sb.WriteString(fmt.Sprintf("- %s\n", item))
+		}
+		sb.WriteString("\n")
+	}
+
+	// Steps
+	if len(log.Steps) > 0 {
+		sb.WriteString("## Planned Steps\n\n")
+		for _, step := range log.Steps {
+			sb.WriteString(fmt.Sprintf("### %s: %s\n\n", step.ID, step.Tool))
+			if step.DependsOn != "" {
+				sb.WriteString(fmt.Sprintf("**Depends On:** %s  \n", step.DependsOn))
+			}
+			sb.WriteString(fmt.Sprintf("**Purpose:** %s  \n\n", step.Purpose))
+			if len(step.Args) > 0 {
+				sb.WriteString("**Arguments:**\n```\n")
+				for k, v := range step.Args {
+					sb.WriteString(fmt.Sprintf("  %s: %s\n", k, v))
+				}
+				sb.WriteString("```\n\n")
+			}
+		}
+	}
+
+	// Raw XML
+	if log.RawXML != "" {
+		sb.WriteString("## Raw Plan XML\n\n")
+		sb.WriteString("```xml\n")
+		sb.WriteString(log.RawXML)
+		sb.WriteString("\n```\n")
+	}
+
+	//nolint:gosec // Log files in user's config directory
+	return os.WriteFile(fpath, []byte(sb.String()), 0640)
+}
+
+// LogExecution logs a tool execution step
+func (l *StepLogger) LogExecution(log ExecutionStepLog) error {
+	index := l.nextIndex()
+	filename := fmt.Sprintf("step_%03d_exec_%s.md", index, sanitizeFilename(log.Tool))
+	fpath := filepath.Join(l.logsDir, filename)
+
+	var sb strings.Builder
+
+	// Header
+	sb.WriteString(fmt.Sprintf("# Step %03d: Execute %s\n\n", index, log.Tool))
+	sb.WriteString(fmt.Sprintf("**Step ID:** %s  \n", log.StepID))
+	sb.WriteString(fmt.Sprintf("**Tool:** %s  \n", log.Tool))
+	sb.WriteString(fmt.Sprintf("**Time:** %s  \n", time.Now().Format(time.RFC3339)))
+	sb.WriteString(fmt.Sprintf("**Duration:** %dms  \n", log.DurationMs))
+	sb.WriteString(fmt.Sprintf("**Success:** %t  \n\n", log.Success))
+
+	// Purpose
+	if log.Purpose != "" {
+		sb.WriteString(fmt.Sprintf("**Purpose:** %s\n\n", log.Purpose))
+	}
+
+	// Arguments
+	if len(log.Args) > 0 {
+		sb.WriteString("## Arguments\n\n```json\n")
+		argsJSON, _ := json.MarshalIndent(log.Args, "", "  ")
+		sb.WriteString(string(argsJSON))
+		sb.WriteString("\n```\n\n")
+	}
+
+	// Output
+	sb.WriteString("## Output\n\n")
+	if log.Error != "" {
+		sb.WriteString(fmt.Sprintf("**Error:** %s\n\n", log.Error))
+	}
+	sb.WriteString("```\n")
+	sb.WriteString(log.Output)
+	sb.WriteString("\n```\n")
+
+	//nolint:gosec // Log files in user's config directory
+	return os.WriteFile(fpath, []byte(sb.String()), 0640)
+}
+
+// LLMCallLogger is an alias for StepLogger for backward compatibility
+// Deprecated: use StepLogger instead
+type LLMCallLogger = StepLogger
+
+// NewLLMCallLogger creates a new step logger (backward compatible)
+// Deprecated: use NewStepLogger instead
+func NewLLMCallLogger() (*StepLogger, error) {
+	return NewStepLogger()
+}
+
+// LLMCallLog is an alias for LLMStepLog for backward compatibility
+// Deprecated: use LLMStepLog instead
+type LLMCallLog = LLMStepLog
+
+// Log is a backward-compatible wrapper that logs an LLM call
+func (l *StepLogger) Log(call LLMStepLog) error {
+	// Convert old "Type" field to "Phase" if needed
+	if call.Phase == "" {
+		call.Phase = "unknown"
+	}
+	return l.LogLLM(call)
 }

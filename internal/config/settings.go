@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -12,7 +13,15 @@ import (
 
 // Settings represents the application settings
 type Settings struct {
-	Tools ToolsSettings `json:"tools"`
+	Tools     ToolsSettings     `json:"tools"`
+	Variables TemplateVariables `json:"variables"`
+}
+
+// TemplateVariables contains variables that are substituted in templates
+type TemplateVariables struct {
+	Username      string `json:"username"`
+	HomeDirectory string `json:"home_directory"`
+	OSName        string `json:"os_name"`
 }
 
 // ToolsSettings contains tool-related settings
@@ -63,6 +72,28 @@ func DefaultSettings() *Settings {
 				MaxFileSize:  10 * 1024 * 1024, // 10MB default
 			},
 		},
+		Variables: DefaultTemplateVariables(),
+	}
+}
+
+// DefaultTemplateVariables returns template variables populated from the environment
+func DefaultTemplateVariables() TemplateVariables {
+	username := os.Getenv("USER")
+	if username == "" {
+		username = os.Getenv("USERNAME") // Windows fallback
+	}
+
+	home := os.Getenv("HOME")
+	if home == "" {
+		if h, err := os.UserHomeDir(); err == nil {
+			home = h
+		}
+	}
+
+	return TemplateVariables{
+		Username:      username,
+		HomeDirectory: home,
+		OSName:        getOS(),
 	}
 }
 
@@ -108,12 +139,27 @@ func Load() (*Settings, error) {
 		return nil, err
 	}
 
-	var settings Settings
-	if err := json.Unmarshal(data, &settings); err != nil {
+	// Start with defaults
+	settings := DefaultSettings()
+
+	// Unmarshal over defaults (preserves defaults for missing fields)
+	if err := json.Unmarshal(data, settings); err != nil {
 		return nil, err
 	}
 
-	return &settings, nil
+	// Ensure variables have values (fill in any empty ones with defaults)
+	defaults := DefaultTemplateVariables()
+	if settings.Variables.Username == "" {
+		settings.Variables.Username = defaults.Username
+	}
+	if settings.Variables.HomeDirectory == "" {
+		settings.Variables.HomeDirectory = defaults.HomeDirectory
+	}
+	if settings.Variables.OSName == "" {
+		settings.Variables.OSName = defaults.OSName
+	}
+
+	return settings, nil
 }
 
 // Save saves settings to ~/.craby/settings.json
@@ -237,12 +283,14 @@ func DefaultUserTemplate() string {
 	return content
 }
 
-// processUserTemplate replaces placeholders in the user template with actual values
-func processUserTemplate(content string) string {
+// processTemplate replaces placeholders in a template with values from settings
+func processTemplate(content string, vars TemplateVariables) string {
 	replacements := map[string]string{
-		"{{USERNAME}}": os.Getenv("USER"),
-		"{{HOME}}":     os.Getenv("HOME"),
-		"{{OS}}":       getOS(),
+		"{{USERNAME}}":       vars.Username,
+		"{{HOME}}":           vars.HomeDirectory,
+		"{{HOME_DIRECTORY}}": vars.HomeDirectory,
+		"{{OS}}":             vars.OSName,
+		"{{OS_NAME}}":        vars.OSName,
 	}
 
 	for placeholder, value := range replacements {
@@ -250,6 +298,12 @@ func processUserTemplate(content string) string {
 	}
 
 	return content
+}
+
+// processUserTemplate replaces placeholders in the user template with actual values
+// Deprecated: use processTemplate with settings.Variables instead
+func processUserTemplate(content string) string {
+	return processTemplate(content, DefaultTemplateVariables())
 }
 
 func getOS() string {
@@ -265,49 +319,106 @@ func getOS() string {
 	}
 }
 
-// LoadTemplates loads templates from ~/.craby/identity.md and ~/.craby/user.md
-// If files don't exist, creates them from the embedded default templates
-func LoadTemplates() (*Templates, error) {
-	dir, err := ConfigDir()
+// PipelineTemplates holds templates for the pipeline agent
+type PipelineTemplates struct {
+	Planning  string
+	Synthesis string
+	Identity  string
+	User      string
+}
+
+// LoadPipelineTemplates loads templates for the pipeline agent
+// Uses built-in templates by default, with optional overrides from ~/.craby/
+func LoadPipelineTemplates() (*PipelineTemplates, error) {
+	// Load settings to get variables
+	settings, err := Load()
+	if err != nil {
+		// Use default variables if settings can't be loaded
+		settings = DefaultSettings()
+	}
+
+	return LoadPipelineTemplatesWithSettings(settings)
+}
+
+// LoadPipelineTemplatesWithSettings loads templates using provided settings
+func LoadPipelineTemplatesWithSettings(settings *Settings) (*PipelineTemplates, error) {
+	// Load base templates first
+	baseTemplates, err := LoadTemplatesWithSettings(settings)
 	if err != nil {
 		return nil, err
 	}
 
-	// Ensure directory exists
-	if err := os.MkdirAll(dir, 0750); err != nil {
-		return nil, err
+	result := &PipelineTemplates{
+		Identity: baseTemplates.Identity,
+		User:     baseTemplates.User,
 	}
+
+	dir, _ := ConfigDir()
+
+	// Load planning template (built-in default, optional override)
+	planningContent, err := templates.Planning()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load planning template: %w", err)
+	}
+	// Check for user override
+	if dir != "" {
+		if data, err := os.ReadFile(filepath.Join(dir, "planning.md")); err == nil {
+			planningContent = string(data)
+		}
+	}
+	result.Planning = processTemplate(planningContent, settings.Variables)
+
+	// Load synthesis template (built-in default, optional override)
+	synthesisContent, err := templates.Synthesis()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load synthesis template: %w", err)
+	}
+	// Check for user override
+	if dir != "" {
+		if data, err := os.ReadFile(filepath.Join(dir, "synthesis.md")); err == nil {
+			synthesisContent = string(data)
+		}
+	}
+	result.Synthesis = processTemplate(synthesisContent, settings.Variables)
+
+	return result, nil
+}
+
+// LoadTemplates loads templates using default settings
+// Uses built-in templates by default, with optional overrides from ~/.craby/
+func LoadTemplates() (*Templates, error) {
+	settings, err := Load()
+	if err != nil {
+		settings = DefaultSettings()
+	}
+	return LoadTemplatesWithSettings(settings)
+}
+
+// LoadTemplatesWithSettings loads templates using provided settings
+// Uses built-in templates by default, with optional overrides from ~/.craby/
+// Does NOT auto-create files - only reads if they exist
+func LoadTemplatesWithSettings(settings *Settings) (*Templates, error) {
+	dir, _ := ConfigDir()
 
 	result := &Templates{}
 
-	// Load or create identity template
-	identityPath := filepath.Join(dir, "identity.md")
-	if data, err := os.ReadFile(identityPath); err == nil {
-		result.Identity = string(data)
-	} else if os.IsNotExist(err) {
-		result.Identity = DefaultIdentityTemplate()
-		if err := os.WriteFile(identityPath, []byte(result.Identity), 0600); err != nil {
-			return nil, err
+	// Load identity template (built-in default, optional override)
+	result.Identity = DefaultIdentityTemplate()
+	if dir != "" {
+		if data, err := os.ReadFile(filepath.Join(dir, "identity.md")); err == nil {
+			result.Identity = string(data)
 		}
-	} else {
-		return nil, err
 	}
+	result.Identity = processTemplate(result.Identity, settings.Variables)
 
-	// Load or create user template
-	userPath := filepath.Join(dir, "user.md")
-	if data, err := os.ReadFile(userPath); err == nil {
-		result.User = processUserTemplate(string(data))
-	} else if os.IsNotExist(err) {
-		defaultUser := DefaultUserTemplate()
-		// Write the template with placeholders
-		if err := os.WriteFile(userPath, []byte(defaultUser), 0600); err != nil {
-			return nil, err
+	// Load user template (built-in default, optional override)
+	result.User = DefaultUserTemplate()
+	if dir != "" {
+		if data, err := os.ReadFile(filepath.Join(dir, "user.md")); err == nil {
+			result.User = string(data)
 		}
-		// Process placeholders for actual use
-		result.User = processUserTemplate(defaultUser)
-	} else {
-		return nil, err
 	}
+	result.User = processTemplate(result.User, settings.Variables)
 
 	return result, nil
 }

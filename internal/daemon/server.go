@@ -71,19 +71,19 @@ func NewServer(port int, ollamaURL, model string) *Server {
 		Strs("shell_allowlist", settings.Tools.Shell.Allowlist).
 		Msg("loaded settings")
 
-	// Load templates
-	templates, err := config.LoadTemplates()
+	// Load pipeline templates
+	pipelineTemplates, err := config.LoadPipelineTemplates()
 	if err != nil {
-		logger.Warn().Err(err).Msg("failed to load templates, using defaults")
-		templates = &config.Templates{
+		logger.Warn().Err(err).Msg("failed to load pipeline templates, using defaults")
+		pipelineTemplates = &config.PipelineTemplates{
 			Identity: config.DefaultIdentityTemplate(),
 			User:     config.DefaultUserTemplate(),
 		}
 	}
-	logger.Info().Msg("loaded templates")
+	logger.Info().Msg("loaded pipeline templates")
 
-	// Build system prompt from templates
-	systemPrompt := templates.Identity + "\n\n" + templates.User
+	// Build system prompt from templates (for context display)
+	systemPrompt := pipelineTemplates.Identity + "\n\n" + pipelineTemplates.User
 
 	// Create Ollama client
 	ollama := NewOllamaClient(ollamaURL, model, llmCallLogger)
@@ -157,11 +157,27 @@ func NewServer(port int, ollamaURL, model string) *Server {
 		}
 	}
 
-	// Create agent with system prompt from templates
-	agnt := agent.NewAgent(ollama, registry, logger, systemPrompt)
+	// Extract external tool names for pipeline validation
+	externalToolNames := make([]string, 0, len(externalTools))
+	for _, tool := range externalTools {
+		externalToolNames = append(externalToolNames, tool.Name)
+	}
 
-	// Create handler with shell tool for smart discovery
-	handler := NewHandler(agnt, shellTool, logger)
+	// Create pipeline with templates and external tools
+	pipeline := agent.NewPipelineWithExternalTools(ollama, registry, logger, agent.PipelineTemplates{
+		Planning:  pipelineTemplates.Planning,
+		Synthesis: pipelineTemplates.Synthesis,
+		Identity:  pipelineTemplates.Identity,
+		User:      pipelineTemplates.User,
+	}, externalToolNames)
+
+	// Set step logger for debugging
+	if llmCallLogger != nil {
+		pipeline.SetStepLogger(&stepLoggerAdapter{logger: llmCallLogger})
+	}
+
+	// Create handler with pipeline
+	handler := NewPipelineHandler(pipeline, systemPrompt, shellTool, logger)
 
 	return &Server{
 		port:      port,
@@ -447,4 +463,50 @@ func (s *Server) sendToolResponse(w http.ResponseWriter, resp *api.ToolRunRespon
 
 	w.Header().Set("Content-Type", "application/x-protobuf")
 	_, _ = w.Write(data)
+}
+
+// stepLoggerAdapter adapts config.StepLogger to agent.PipelineStepLogger
+type stepLoggerAdapter struct {
+	logger *config.StepLogger
+}
+
+func (a *stepLoggerAdapter) Reset() {
+	a.logger.Reset()
+}
+
+func (a *stepLoggerAdapter) LogPlan(log agent.PlanStepLog) error {
+	// Convert agent.PlanStepLog to config.PlanStepLog
+	steps := make([]config.PlanStepEntry, 0, len(log.Steps))
+	for _, step := range log.Steps {
+		steps = append(steps, config.PlanStepEntry{
+			ID:        step.ID,
+			DependsOn: step.DependsOn,
+			Tool:      step.Tool,
+			Purpose:   step.Purpose,
+			Args:      step.Args,
+		})
+	}
+
+	return a.logger.LogPlan(config.PlanStepLog{
+		Intent:        log.Intent,
+		Complexity:    log.Complexity,
+		NeedsTools:    log.NeedsTools,
+		ReadyToAnswer: log.ReadyToAnswer,
+		Context:       log.Context,
+		Steps:         steps,
+		RawXML:        log.RawXML,
+	})
+}
+
+func (a *stepLoggerAdapter) LogExecution(log agent.ExecutionStepLog) error {
+	return a.logger.LogExecution(config.ExecutionStepLog{
+		StepID:     log.StepID,
+		Tool:       log.Tool,
+		Purpose:    log.Purpose,
+		Args:       log.Args,
+		Output:     log.Output,
+		Success:    log.Success,
+		Error:      log.Error,
+		DurationMs: log.DurationMs,
+	})
 }

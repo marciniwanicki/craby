@@ -133,23 +133,17 @@ func (t *GetCommandSchemaTool) Name() string {
 }
 
 func (t *GetCommandSchemaTool) Description() string {
-	return `Generates a structured JSON schema for a CLI command by analyzing its "--help" output. Use this tool for pre-execution discovery to ensure correct syntax and parameter handling.
+	return `Discovers the schema for a CLI command by analyzing its "--help" output.
 
-## Operational Procedure
-1.  **Top-Down Analysis:** Always start with the base command (e.g., "tfl").
-2.  **Recursive Logic:** Identify available subcommands from the top-level schema. **Never** hallucinate or guess subcommand names.
-3.  **Incremental Detail:** To investigate a subcommand, call the tool with the subcommand (e.g., {"command":"tfl", "subcommand": "status"}) only after the parent command has confirmed its existence.
+## How to Use
+1. Start with the base command: get_command_schema(command: "tfl")
+2. Then discover subcommands: get_command_schema(command: "tfl status")
+3. Continue deeper if needed: get_command_schema(command: "docker compose up")
 
-## Output Requirements
-The tool must return a valid **JSON Schema** containing:
-* "parameters": Object defining flags, options, and positional arguments.
-* "types": Mapping of inputs to "string", "boolean", "integer", or "enum" based on help text.
-* "subcommands": A list of valid child commands for further exploration.
-* "descriptions": Brief documentation for each element.
-
-## Strict Constraints
-* **No Execution:** Do not attempt to run the command with the shell tool until the parameter schema is fully resolved.
-* **Incremental Only:** If a command has deep nesting, you must resolve one level at a time.`
+## Important
+- Always discover the base command first to learn available subcommands
+- Never guess subcommand names - discover them from the parent command's schema
+- Only use shell to execute a command after discovering its full schema`
 }
 
 func (t *GetCommandSchemaTool) Parameters() map[string]any {
@@ -158,11 +152,7 @@ func (t *GetCommandSchemaTool) Parameters() map[string]any {
 		"properties": map[string]any{
 			"command": map[string]any{
 				"type":        "string",
-				"description": "The command name to discover (e.g., 'docker', 'git', 'kubectl')",
-			},
-			"subcommand": map[string]any{
-				"type":        "string",
-				"description": "Optional subcommand to get detailed schema for (e.g., 'run' for 'docker run')",
+				"description": "The command to discover, including subcommands (e.g., 'tfl', 'tfl status', 'docker compose up')",
 			},
 		},
 		"required": []string{"command"},
@@ -178,35 +168,32 @@ func (t *GetCommandSchemaTool) Execute(args map[string]any) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("command must be a string")
 	}
-
-	subcommand := ""
-	if sub, ok := args["subcommand"].(string); ok {
-		subcommand = sub
-	}
+	command = strings.TrimSpace(command)
 
 	// Note: caching disabled during development
 	// TODO: re-enable caching once schema generation is stable
 
-	// Validate command is allowed
-	if !t.isCommandAllowed(command) {
-		return "", fmt.Errorf("command not in allowlist: %s", command)
+	// Validate base command is allowed (first word)
+	baseCommand := strings.Fields(command)[0]
+	if !t.isCommandAllowed(baseCommand) {
+		return "", fmt.Errorf("command not in allowlist: %s", baseCommand)
 	}
 
 	// Get help text
-	helpText, err := t.getHelpText(command, subcommand)
+	helpText, err := t.getHelpText(command)
 	if err != nil {
 		return "", fmt.Errorf("failed to get help for %s: %w", command, err)
 	}
 
 	// Generate schema using LLM
-	schema, err := t.generateSchema(command, subcommand, helpText)
+	schema, err := t.generateSchema(command, helpText)
 	if err != nil {
 		// Fall back to returning raw help if LLM fails
 		return fmt.Sprintf("# %s Help\n\nCould not generate schema: %v\n\nRaw help:\n```\n%s\n```",
 			command, err, helpText), nil
 	}
 
-	return t.formatSchema(command, subcommand, schema, helpText), nil
+	return t.formatSchema(command, schema, helpText), nil
 }
 
 func (t *GetCommandSchemaTool) isCommandAllowed(command string) bool {
@@ -226,17 +213,12 @@ func (t *GetCommandSchemaTool) isCommandAllowed(command string) bool {
 	return safeCommands[command]
 }
 
-func (t *GetCommandSchemaTool) getHelpText(command, subcommand string) (string, error) {
+func (t *GetCommandSchemaTool) getHelpText(command string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Build command
-	var cmdStr string
-	if subcommand != "" {
-		cmdStr = fmt.Sprintf("%s %s --help", command, subcommand)
-	} else {
-		cmdStr = fmt.Sprintf("%s --help", command)
-	}
+	// Build help command
+	cmdStr := fmt.Sprintf("%s --help", command)
 
 	cmd := exec.CommandContext(ctx, "sh", "-c", cmdStr)
 	var stdout, stderr bytes.Buffer
@@ -265,7 +247,7 @@ func (t *GetCommandSchemaTool) getHelpText(command, subcommand string) (string, 
 	return output, nil
 }
 
-func (t *GetCommandSchemaTool) generateSchema(command, subcommand, helpText string) (map[string]any, error) {
+func (t *GetCommandSchemaTool) generateSchema(command, helpText string) (map[string]any, error) {
 	if t.llm == nil {
 		return nil, fmt.Errorf("no LLM available for schema generation")
 	}
@@ -285,7 +267,7 @@ Analyze the provided help text and output ONLY a valid JSON object.
   "description": "Concise summary of purpose in English",
   "subcommands": [
     {
-      "name": "name", 
+      "name": "name",
       "description": "description in English"
     }
   ],
@@ -315,7 +297,7 @@ Analyze the provided help text and output ONLY a valid JSON object.
 
 # Strict Guidelines
 1. **Language**: The entire output must be in English, regardless of the language of the source help text.
-2. **Type Precision**: 
+2. **Type Precision**:
    - Use "boolean" for "switches" (flags with no value).
    - Use "string" or "number" for options that require an argument (e.g., "--port 80").
    - Use "array" if a flag can be passed multiple times.
@@ -324,12 +306,7 @@ Analyze the provided help text and output ONLY a valid JSON object.
 5. **Variadic Arguments**: Mark "variadic: true" for arguments that accept multiple values (e.g., "[files...]").
 6. **No Prose**: Output the JSON block only. Do not include introductory text, conversational filler, or markdown code blocks in your response.`
 
-	cmdName := command
-	if subcommand != "" {
-		cmdName = command + " " + subcommand
-	}
-
-	userMessage := fmt.Sprintf("Convert this help text for `%s` into a JSON schema:\n\n```\n%s\n```", cmdName, helpText)
+	userMessage := fmt.Sprintf("Convert this help text for `%s` into a JSON schema:\n\n```\n%s\n```", command, helpText)
 
 	response, err := t.llm.SimpleChat(ctx, systemPrompt, userMessage)
 	if err != nil {
@@ -357,15 +334,10 @@ Analyze the provided help text and output ONLY a valid JSON object.
 	return schema, nil
 }
 
-func (t *GetCommandSchemaTool) formatSchema(command, subcommand string, schema map[string]any, helpText string) string {
+func (t *GetCommandSchemaTool) formatSchema(command string, schema map[string]any, helpText string) string {
 	var result strings.Builder
 
-	cmdName := command
-	if subcommand != "" {
-		cmdName = command + " " + subcommand
-	}
-
-	result.WriteString(fmt.Sprintf("# %s Schema\n\n", cmdName))
+	result.WriteString(fmt.Sprintf("# %s Schema\n\n", command))
 
 	// Description
 	if desc, ok := schema["description"].(string); ok {
@@ -379,7 +351,7 @@ func (t *GetCommandSchemaTool) formatSchema(command, subcommand string, schema m
 			if s, ok := sub.(map[string]any); ok {
 				name := s["name"]
 				desc := s["description"]
-				result.WriteString(fmt.Sprintf("- `%s %v`: %v\n", cmdName, name, desc))
+				result.WriteString(fmt.Sprintf("- `%s %v`: %v\n", command, name, desc))
 			}
 		}
 		result.WriteString("\n")

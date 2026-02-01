@@ -143,7 +143,7 @@ func (c *OllamaClient) Chat(ctx context.Context, message string, tokenChan chan<
 	agentMessages := []agent.Message{
 		{Role: "user", Content: message},
 	}
-	c.logCall("chat", agentMessages, nil, &agent.ChatResult{Content: contentBuilder.String()}, "", startTime)
+	c.logCall("simple_chat", agentMessages, nil, &agent.ChatResult{Content: contentBuilder.String()}, "", startTime)
 
 	return nil
 }
@@ -291,6 +291,97 @@ func (c *OllamaClient) Model() string {
 	return c.model
 }
 
+// ChatMessages sends messages without tools and streams the response.
+// Implements agent.PipelineLLMClient interface.
+func (c *OllamaClient) ChatMessages(ctx context.Context, messages []agent.Message, tokenChan chan<- string) (string, error) {
+	startTime := time.Now()
+
+	// Close the token channel when done (if provided)
+	if tokenChan != nil {
+		defer close(tokenChan)
+	}
+
+	// Convert agent messages to Ollama messages
+	ollamaMessages := make([]OllamaMessage, len(messages))
+	for i, msg := range messages {
+		ollamaMessages[i] = OllamaMessage{
+			Role:    msg.Role,
+			Content: msg.Content,
+		}
+	}
+
+	req := OllamaRequest{
+		Model:    c.model,
+		Messages: ollamaMessages,
+		Stream:   true,
+	}
+
+	body, err := json.Marshal(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/api/chat", bytes.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return "", fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("ollama returned status %d", resp.StatusCode)
+	}
+
+	var contentBuilder bytes.Buffer
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		default:
+		}
+
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+
+		var ollamaResp OllamaResponse
+		if err := json.Unmarshal(line, &ollamaResp); err != nil {
+			return "", fmt.Errorf("failed to unmarshal response: %w", err)
+		}
+
+		if ollamaResp.Error != "" {
+			return "", fmt.Errorf("ollama error: %s", ollamaResp.Error)
+		}
+
+		if ollamaResp.Message.Content != "" {
+			contentBuilder.WriteString(ollamaResp.Message.Content)
+			if tokenChan != nil {
+				tokenChan <- ollamaResp.Message.Content
+			}
+		}
+
+		if ollamaResp.Done {
+			break
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("error reading response: %w", err)
+	}
+
+	// Log the LLM call
+	c.logCall("chat_messages", messages, nil, &agent.ChatResult{Content: contentBuilder.String()}, "", startTime)
+
+	return contentBuilder.String(), nil
+}
+
 // SimpleChat makes a simple chat completion call without tools.
 // Implements tools.LLMClient interface for tool discovery.
 func (c *OllamaClient) SimpleChat(ctx context.Context, systemPrompt, userMessage string) (string, error) {
@@ -348,7 +439,7 @@ func (c *OllamaClient) SimpleChat(ctx context.Context, systemPrompt, userMessage
 }
 
 // logCall logs an LLM call to a markdown file
-func (c *OllamaClient) logCall(callType string, messages []agent.Message, tools []any, result *agent.ChatResult, errMsg string, startTime time.Time) {
+func (c *OllamaClient) logCall(phase string, messages []agent.Message, tools []any, result *agent.ChatResult, errMsg string, startTime time.Time) {
 	if c.llmCallLogger == nil {
 		return
 	}
@@ -391,8 +482,8 @@ func (c *OllamaClient) logCall(callType string, messages []agent.Message, tools 
 		response = result.Content
 	}
 
-	call := config.LLMCallLog{
-		Type:       callType,
+	call := config.LLMStepLog{
+		Phase:      phase,
 		Model:      c.model,
 		Messages:   msgLogs,
 		Tools:      toolNames,
@@ -402,5 +493,5 @@ func (c *OllamaClient) logCall(callType string, messages []agent.Message, tools 
 		DurationMs: time.Since(startTime).Milliseconds(),
 	}
 
-	_ = c.llmCallLogger.Log(call)
+	_ = c.llmCallLogger.LogLLM(call)
 }

@@ -260,9 +260,8 @@ func (c *Client) Chat(ctx context.Context, message string, output io.Writer, opt
 			spin.Resume()
 
 		case *api.ChatResponse_ShellCommand:
-			spin.Pause()
-			fmt.Fprint(output, formatShellCommand(payload.ShellCommand.Command, payload.ShellCommand.IsDiscovery))
-			spin.Resume()
+			// Shell command output is now handled by ToolCall event
+			// No need to print separately
 
 		case *api.ChatResponse_Done:
 			stopSpinner()
@@ -530,24 +529,28 @@ func (c *Client) ListTools(ctx context.Context) (*api.ToolListResponse, error) {
 	return &toolList, nil
 }
 
-// formatShellCommand formats a shell command for display
-func formatShellCommand(command string, isDiscovery bool) string {
-	prefix := "$ "
-	if isDiscovery {
-		prefix = "? " // Different prefix for discovery commands
-	}
-	return fmt.Sprintf("%s%s%s%s%s\n",
-		colorGray, prefix, colorWhite, command, colorReset)
-}
-
 // formatToolCall formats a tool call for display
 func formatToolCall(name, arguments string) string {
 	// Format tool name: replace underscores with spaces and capitalize each word
 	displayName := formatToolName(name)
 
-	// Parse arguments to extract relevant info for shell tool
+	// Parse arguments
 	var args map[string]any
-	if name == "shell" && json.Unmarshal([]byte(arguments), &args) == nil {
+	_ = json.Unmarshal([]byte(arguments), &args)
+
+	// Special formatting for specific tools
+	switch name {
+	case "shell":
+		// Don't show command for shell - it's redundant
+		if cmd, ok := args["command"].(string); ok {
+			return fmt.Sprintf("%s⚡%s%s%s%s(%s%s%s)\n",
+				colorLightYellow, colorReset,
+				colorWhiteBold, displayName, colorReset,
+				colorWhite, cmd, colorReset)
+		}
+
+	case "get_command_schema":
+		// Show just the command, not JSON
 		if cmd, ok := args["command"].(string); ok {
 			return fmt.Sprintf("%s⚡%s%s%s%s(%s%s%s)\n",
 				colorLightYellow, colorReset,

@@ -311,9 +311,9 @@ func TestGetCommandSchemaTool_TFL_Subcommand(t *testing.T) {
 	mockLLM := newMockTFLSchemaLLM()
 	tool := NewGetCommandSchemaTool(settings, nil, mockLLM)
 
+	// Using the simplified single command argument format
 	result, err := tool.Execute(map[string]any{
-		"command":    "tfl",
-		"subcommand": "departures",
+		"command": "tfl departures",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -393,8 +393,7 @@ func TestGetCommandSchemaTool_TFL_FormatsFlags(t *testing.T) {
 	tool := NewGetCommandSchemaTool(settings, nil, mockLLM)
 
 	result, err := tool.Execute(map[string]any{
-		"command":    "tfl",
-		"subcommand": "departures",
+		"command": "tfl departures",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -426,8 +425,7 @@ func TestGetCommandSchemaTool_TFL_FormatsArguments(t *testing.T) {
 	tool := NewGetCommandSchemaTool(settings, nil, mockLLM)
 
 	result, err := tool.Execute(map[string]any{
-		"command":    "tfl",
-		"subcommand": "departures",
+		"command": "tfl departures",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -450,8 +448,7 @@ func TestGetCommandSchemaTool_TFL_FormatsExamples(t *testing.T) {
 	tool := NewGetCommandSchemaTool(settings, nil, mockLLM)
 
 	result, err := tool.Execute(map[string]any{
-		"command":    "tfl",
-		"subcommand": "departures",
+		"command": "tfl departures",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

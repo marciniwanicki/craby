@@ -18,7 +18,9 @@ const (
 	EventText EventType = iota
 	EventToolCall
 	EventToolResult
-	EventShellCommand // A shell command is being executed
+	EventShellCommand  // A shell command is being executed
+	EventPlanGenerated // A plan was generated (pipeline mode)
+	EventStepStarted   // A plan step is starting (pipeline mode)
 )
 
 // Role represents the message role
@@ -51,6 +53,9 @@ type Event struct {
 	// For EventShellCommand
 	ShellCommand string
 	IsDiscovery  bool // True if this is a discovery command (e.g., --help)
+
+	// For EventPlanGenerated
+	Plan *Plan
 }
 
 // Message represents a chat message

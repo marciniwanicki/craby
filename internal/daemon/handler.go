@@ -14,21 +14,38 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Handler manages WebSocket connections and message handling
-type Handler struct {
-	agent     *agent.Agent
-	shellTool *tools.ShellTool
-	logger    zerolog.Logger
-	history   []agent.Message
-	context   string
+// Runner is the interface for both Agent and Pipeline
+type Runner interface {
+	Run(ctx context.Context, userMessage string, opts agent.RunOptions, eventChan chan<- agent.Event) ([]agent.Message, error)
 }
 
-// NewHandler creates a new handler
-func NewHandler(agent *agent.Agent, shellTool *tools.ShellTool, logger zerolog.Logger) *Handler {
+// Handler manages WebSocket connections and message handling
+type Handler struct {
+	runner       Runner
+	systemPrompt string
+	shellTool    *tools.ShellTool
+	logger       zerolog.Logger
+	history      []agent.Message
+	context      string
+}
+
+// NewHandler creates a new handler with an Agent
+func NewHandler(agnt *agent.Agent, shellTool *tools.ShellTool, logger zerolog.Logger) *Handler {
 	return &Handler{
-		agent:     agent,
-		shellTool: shellTool,
-		logger:    logger,
+		runner:       agnt,
+		systemPrompt: agnt.SystemPrompt(),
+		shellTool:    shellTool,
+		logger:       logger,
+	}
+}
+
+// NewPipelineHandler creates a new handler with a Pipeline
+func NewPipelineHandler(pipeline *agent.Pipeline, systemPrompt string, shellTool *tools.ShellTool, logger zerolog.Logger) *Handler {
+	return &Handler{
+		runner:       pipeline,
+		systemPrompt: systemPrompt,
+		shellTool:    shellTool,
+		logger:       logger,
 	}
 }
 
@@ -44,11 +61,10 @@ func (h *Handler) Context() string {
 
 // FullContext returns the complete context (system prompt + user context)
 func (h *Handler) FullContext() string {
-	base := h.agent.SystemPrompt()
 	if h.context == "" {
-		return base
+		return h.systemPrompt
 	}
-	return base + "\n\n<context>\n" + h.context + "\n</context>"
+	return h.systemPrompt + "\n\n<context>\n" + h.context + "\n</context>"
 }
 
 // SetContext sets the context string
@@ -121,13 +137,13 @@ func (h *Handler) processChat(conn *websocket.Conn, message string) error {
 	resultChan := make(chan []agent.Message, 1)
 	errChan := make(chan error, 1)
 	go func() {
-		history, err := h.agent.Run(ctx, message, opts, eventChan)
+		history, err := h.runner.Run(ctx, message, opts, eventChan)
 		if err != nil {
-			h.logger.Error().Err(err).Msg("agent run failed")
+			h.logger.Error().Err(err).Msg("runner failed")
 			errChan <- err
 			return
 		}
-		h.logger.Debug().Int("new_history_len", len(history)).Msg("agent run completed")
+		h.logger.Debug().Int("new_history_len", len(history)).Msg("runner completed")
 		resultChan <- history
 	}()
 
@@ -202,6 +218,26 @@ func (h *Handler) processChat(conn *websocket.Conn, message string) error {
 					},
 				},
 			}
+
+		case agent.EventPlanGenerated:
+			// Log plan generation (no client notification needed)
+			if event.Plan != nil {
+				h.logger.Debug().
+					Str("type", "plan_generated").
+					Str("intent", event.Plan.Intent).
+					Str("complexity", string(event.Plan.Complexity)).
+					Int("steps", len(event.Plan.Steps)).
+					Msg("plan generated")
+			}
+			// Don't send to client - this is internal
+
+		case agent.EventStepStarted:
+			// Log step start (could add client notification in the future)
+			h.logger.Debug().
+				Str("type", "step_started").
+				Str("tool", event.ToolName).
+				Msg("step started")
+			// Don't send to client - tool call event follows
 		}
 
 		if resp != nil {
