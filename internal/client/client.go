@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/charmbracelet/glamour"
 	"github.com/gorilla/websocket"
 	"github.com/marciniwanicki/crabby/internal/api"
 	"google.golang.org/protobuf/proto"
@@ -199,6 +200,9 @@ func (c *Client) Chat(ctx context.Context, message string, output io.Writer, opt
 	}
 	defer stopSpinner()
 
+	// Markdown streamer for buffered rendering
+	mdStream := newMarkdownStreamer(output)
+
 	// Read streaming response
 	for {
 		select {
@@ -225,14 +229,15 @@ func (c *Client) Chat(ctx context.Context, message string, output io.Writer, opt
 			spin.Pause()
 			// Always show assistant text
 			if payload.Text.Role == api.Role_ASSISTANT {
-				fmt.Fprint(output, payload.Text.Content)
+				mdStream.Write(payload.Text.Content)
 			} else if opts.Verbosity == VerbosityVerbose {
 				// Show system messages only in verbose mode
-				fmt.Fprint(output, payload.Text.Content)
+				mdStream.Write(payload.Text.Content)
 			}
 
 		case *api.ChatResponse_ToolCall:
 			spin.Pause()
+			mdStream.Flush() // Flush before tool output
 			if opts.Verbosity != VerbosityQuiet {
 				fmt.Fprint(output, formatToolCall(payload.ToolCall.Name, payload.ToolCall.Arguments))
 			}
@@ -256,11 +261,13 @@ func (c *Client) Chat(ctx context.Context, message string, output io.Writer, opt
 
 		case *api.ChatResponse_Done:
 			stopSpinner()
+			mdStream.Flush() // Flush remaining content
 			fmt.Fprintln(output)
 			return nil
 
 		case *api.ChatResponse_Error:
 			stopSpinner()
+			mdStream.Flush()
 			return fmt.Errorf("server error: %s", payload.Error)
 		}
 	}
@@ -464,4 +471,62 @@ func formatToolCall(name, arguments string) string {
 		colorLightYellow, colorReset,
 		colorWhiteBold, displayName, colorReset,
 		colorWhite, arguments, colorReset)
+}
+
+// markdownRenderer handles glamour-based markdown rendering
+var markdownRenderer *glamour.TermRenderer
+
+func init() {
+	var err error
+	markdownRenderer, err = glamour.NewTermRenderer(
+		glamour.WithStylePath("dark"),
+		glamour.WithWordWrap(0), // No word wrap, let terminal handle it
+	)
+	if err != nil {
+		// Fallback: renderer will be nil, we'll output plain text
+		markdownRenderer = nil
+	}
+}
+
+// markdownStreamer buffers text for markdown rendering
+type markdownStreamer struct {
+	output io.Writer
+	buffer strings.Builder
+}
+
+func newMarkdownStreamer(output io.Writer) *markdownStreamer {
+	return &markdownStreamer{output: output}
+}
+
+// Write adds text to the buffer
+func (m *markdownStreamer) Write(text string) {
+	m.buffer.WriteString(text)
+}
+
+// Flush renders and outputs the buffered markdown
+func (m *markdownStreamer) Flush() {
+	if m.buffer.Len() == 0 {
+		return
+	}
+
+	text := m.buffer.String()
+	m.buffer.Reset()
+
+	rendered := renderMarkdown(text)
+	fmt.Fprint(m.output, rendered)
+}
+
+// renderMarkdown converts markdown to styled terminal output using glamour
+func renderMarkdown(text string) string {
+	if markdownRenderer == nil {
+		return text
+	}
+
+	rendered, err := markdownRenderer.Render(text)
+	if err != nil {
+		return text
+	}
+
+	// Glamour adds extra newlines, trim them
+	return strings.TrimSpace(rendered)
 }

@@ -285,6 +285,88 @@ func TestShutdown_ContextCanceled(t *testing.T) {
 	}
 }
 
+func TestRenderMarkdown_Bold(t *testing.T) {
+	input := "This is **bold** text"
+	result := renderMarkdown(input)
+
+	// Should contain the word "bold" without raw markers
+	if !strings.Contains(result, "bold") {
+		t.Error("expected 'bold' text in output")
+	}
+	if strings.Contains(result, "**") {
+		t.Error("should not contain raw ** markers")
+	}
+}
+
+func TestRenderMarkdown_InlineCode(t *testing.T) {
+	input := "Run `go test` command"
+	result := renderMarkdown(input)
+
+	if !strings.Contains(result, "go test") {
+		t.Error("expected code content in output")
+	}
+}
+
+func TestRenderMarkdown_Header(t *testing.T) {
+	input := "# Main Header"
+	result := renderMarkdown(input)
+
+	// Glamour adds ANSI codes, just check key words are present
+	if !strings.Contains(result, "Main") || !strings.Contains(result, "Header") {
+		t.Errorf("expected header text in output, got %q", result)
+	}
+}
+
+func TestRenderMarkdown_PlainText(t *testing.T) {
+	input := "Just plain text"
+	result := renderMarkdown(input)
+
+	// Glamour may add formatting, check key words are present
+	if !strings.Contains(result, "Just") || !strings.Contains(result, "plain") || !strings.Contains(result, "text") {
+		t.Errorf("expected plain text words in output, got %q", result)
+	}
+}
+
+func TestRenderMarkdown_Link(t *testing.T) {
+	input := "Check out [Google](https://google.com) for more"
+	result := renderMarkdown(input)
+
+	// Glamour renders links - should contain the URL
+	if !strings.Contains(result, "google.com") {
+		t.Errorf("expected URL in output, got: %q", result)
+	}
+}
+
+func TestMarkdownStreamer_Buffering(t *testing.T) {
+	var buf strings.Builder
+	ms := newMarkdownStreamer(&buf)
+
+	// Write chunks
+	ms.Write("Hello ")
+	ms.Write("**world**")
+	ms.Flush()
+
+	result := buf.String()
+	if !strings.Contains(result, "world") {
+		t.Error("expected 'world' in output")
+	}
+	if strings.Contains(result, "**") {
+		t.Error("should not contain raw ** markers")
+	}
+}
+
+func TestMarkdownStreamer_EmptyFlush(t *testing.T) {
+	var buf strings.Builder
+	ms := newMarkdownStreamer(&buf)
+
+	// Flush without writing anything
+	ms.Flush()
+
+	if buf.Len() != 0 {
+		t.Error("expected empty output for empty flush")
+	}
+}
+
 // extractPort extracts the port number from an httptest server URL
 func extractPort(t *testing.T, url string) int {
 	t.Helper()
