@@ -210,12 +210,17 @@ func (p *Pipeline) Run(ctx context.Context, userMessage string, opts RunOptions,
 	// Build history: existing history + user message + assistant response
 	history := make([]Message, 0, len(opts.History)+2)
 	history = append(history, opts.History...)
-	history = append(history, Message{Role: "user", Content: userMessage})
-	history = append(history, Message{Role: "assistant", Content: answer})
+	history = append(history,
+		Message{Role: "user", Content: userMessage},
+		Message{Role: "assistant", Content: answer},
+	)
 
 	p.logger.Debug().Int("final_history_len", len(history)).Msg("pipeline run complete")
 	return history, nil
 }
+
+// MaxPlanRetries is the number of times to retry planning if the response is malformed
+const MaxPlanRetries = 3
 
 // planWithResults generates a structured plan from the user message, including previous tool results
 // Returns the plan, the raw XML response, and any error
@@ -227,22 +232,57 @@ func (p *Pipeline) planWithResults(ctx context.Context, userMessage string, opts
 		{Role: "user", Content: userMessage},
 	}
 
-	p.logger.Debug().Int("previous_results", len(previousResults)).Msg("calling LLM for planning")
+	var lastResponse string
+	var lastErr error
 
-	// Don't stream planning phase - we need the complete response
-	response, err := p.llm.ChatMessages(ctx, messages, nil)
-	if err != nil {
-		return nil, "", err
+	for attempt := 0; attempt < MaxPlanRetries; attempt++ {
+		select {
+		case <-ctx.Done():
+			return nil, "", ctx.Err()
+		default:
+		}
+
+		p.logger.Debug().
+			Int("previous_results", len(previousResults)).
+			Int("attempt", attempt+1).
+			Msg("calling LLM for planning")
+
+		// Don't stream planning phase - we need the complete response
+		response, err := p.llm.ChatMessages(ctx, messages, nil)
+		if err != nil {
+			return nil, "", err
+		}
+		lastResponse = response
+
+		p.logger.Debug().
+			Str("response_len", fmt.Sprintf("%d", len(response))).
+			Int("attempt", attempt+1).
+			Msg("received planning response")
+
+		plan, err := ParsePlan(response)
+		if err != nil {
+			lastErr = err
+			p.logger.Warn().
+				Err(err).
+				Int("attempt", attempt+1).
+				Str("response_preview", truncateString(response, 200)).
+				Msg("failed to parse plan, retrying")
+			continue
+		}
+
+		return plan, response, nil
 	}
 
-	p.logger.Debug().Str("response_len", fmt.Sprintf("%d", len(response))).Msg("received planning response")
+	// All retries failed - return detailed error
+	return nil, lastResponse, fmt.Errorf("%w (response: %s)", lastErr, truncateString(lastResponse, 500))
+}
 
-	plan, err := ParsePlan(response)
-	if err != nil {
-		return nil, response, err
+// truncateString truncates a string to maxLen and adds "..." if truncated
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
 	}
-
-	return plan, response, nil
+	return s[:maxLen] + "..."
 }
 
 // validate checks that all tools exist and arguments are valid

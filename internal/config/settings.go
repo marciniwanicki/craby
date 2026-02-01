@@ -300,12 +300,6 @@ func processTemplate(content string, vars TemplateVariables) string {
 	return content
 }
 
-// processUserTemplate replaces placeholders in the user template with actual values
-// Deprecated: use processTemplate with settings.Variables instead
-func processUserTemplate(content string) string {
-	return processTemplate(content, DefaultTemplateVariables())
-}
-
 func getOS() string {
 	switch runtime.GOOS {
 	case "darwin":

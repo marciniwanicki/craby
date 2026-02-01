@@ -410,18 +410,21 @@ func (l *StepLogger) LogExecution(log ExecutionStepLog) error {
 	return os.WriteFile(fpath, []byte(sb.String()), 0640)
 }
 
-// LLMCallLogger is an alias for StepLogger for backward compatibility
-// Deprecated: use StepLogger instead
+// LLMCallLogger is an alias for StepLogger for backward compatibility.
+//
+// Deprecated: use StepLogger instead.
 type LLMCallLogger = StepLogger
 
-// NewLLMCallLogger creates a new step logger (backward compatible)
-// Deprecated: use NewStepLogger instead
+// NewLLMCallLogger creates a new step logger (backward compatible).
+//
+// Deprecated: use NewStepLogger instead.
 func NewLLMCallLogger() (*StepLogger, error) {
 	return NewStepLogger()
 }
 
-// LLMCallLog is an alias for LLMStepLog for backward compatibility
-// Deprecated: use LLMStepLog instead
+// LLMCallLog is an alias for LLMStepLog for backward compatibility.
+//
+// Deprecated: use LLMStepLog instead.
 type LLMCallLog = LLMStepLog
 
 // Log is a backward-compatible wrapper that logs an LLM call

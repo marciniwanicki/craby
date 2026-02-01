@@ -47,13 +47,13 @@ func NewServer(port int, ollamaURL, model string) *Server {
 		logCloser = nil
 	}
 
-	// Clear old LLM call logs
-	if err := config.ClearLLMCallLogs(); err != nil {
-		logger.Warn().Err(err).Msg("failed to clear LLM call logs")
+	// Clear old step logs
+	if err := config.ClearStepLogs(); err != nil {
+		logger.Warn().Err(err).Msg("failed to clear step logs")
 	}
 
 	// Set up LLM call logger
-	llmCallLogger, err := config.NewLLMCallLogger()
+	llmCallLogger, err := config.NewStepLogger()
 	if err != nil {
 		logger.Warn().Err(err).Msg("failed to set up LLM call logger")
 	}

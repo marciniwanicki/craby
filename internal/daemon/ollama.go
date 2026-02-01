@@ -18,7 +18,7 @@ type OllamaClient struct {
 	baseURL       string
 	model         string
 	httpClient    *http.Client
-	llmCallLogger *config.LLMCallLogger
+	llmCallLogger *config.StepLogger
 }
 
 // OllamaRequest represents a chat request to Ollama
@@ -59,7 +59,7 @@ type OllamaResponse struct {
 }
 
 // NewOllamaClient creates a new Ollama client
-func NewOllamaClient(baseURL, model string, llmCallLogger *config.LLMCallLogger) *OllamaClient {
+func NewOllamaClient(baseURL, model string, llmCallLogger *config.StepLogger) *OllamaClient {
 	return &OllamaClient{
 		baseURL:       baseURL,
 		model:         model,
