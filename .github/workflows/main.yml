@@ -44,9 +44,7 @@ jobs:
         run: make build
 
       - name: Lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
+        run: make lint
 
       - name: Test
         run: make test
