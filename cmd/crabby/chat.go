@@ -5,9 +5,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/marciniwanicki/crabby/internal/client"
 	"github.com/spf13/cobra"
@@ -53,9 +55,9 @@ func chatCmd() *cobra.Command {
 				Verbosity: verbosity,
 			}
 
-			// Check if daemon is running
-			if !c.IsRunning(ctx) {
-				return fmt.Errorf("daemon is not running. Start it with: crabby daemon")
+			// Start daemon if not running
+			if err := ensureDaemonRunning(ctx, c); err != nil {
+				return err
 			}
 
 			// Interactive REPL mode
@@ -67,6 +69,57 @@ func chatCmd() *cobra.Command {
 	cmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Only show assistant responses (hide tool info)")
 
 	return cmd
+}
+
+// ensureDaemonRunning starts the daemon in the background if it's not already running.
+// It waits for the daemon to become ready before returning.
+func ensureDaemonRunning(ctx context.Context, c *client.Client) error {
+	if c.IsRunning(ctx) {
+		return nil
+	}
+
+	// Get the path to the current executable
+	executable, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to get executable path: %w", err)
+	}
+
+	// Build command with current flags
+	args := []string{"daemon", fmt.Sprintf("--port=%d", port)}
+	if ollamaURL != "" {
+		args = append(args, fmt.Sprintf("--ollama-url=%s", ollamaURL))
+	}
+	if model != "" {
+		args = append(args, fmt.Sprintf("--model=%s", model))
+	}
+
+	cmd := exec.Command(executable, args...)
+	// Detach from parent process
+	cmd.Stdin = nil
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start daemon: %w", err)
+	}
+
+	// Wait for daemon to become ready
+	timeout := time.After(5 * time.Second)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-timeout:
+			return fmt.Errorf("timeout waiting for daemon to start")
+		case <-ticker.C:
+			if c.IsRunning(ctx) {
+				return nil
+			}
+		}
+	}
 }
 
 func printBanner(c *client.Client, ctx context.Context) {

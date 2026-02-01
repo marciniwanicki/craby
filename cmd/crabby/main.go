@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 
@@ -36,8 +35,9 @@ Without arguments, starts interactive chat.`,
 			c := client.NewClient(port)
 			ctx := context.Background()
 
-			if !c.IsRunning(ctx) {
-				return fmt.Errorf("daemon is not running. Start it with: crabby daemon")
+			// Start daemon if not running
+			if err := ensureDaemonRunning(ctx, c); err != nil {
+				return err
 			}
 
 			// If args provided, send as one-shot message
