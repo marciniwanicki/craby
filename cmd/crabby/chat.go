@@ -18,9 +18,11 @@ import (
 
 const (
 	colorReset       = "\033[0m"
+	colorRed         = "\033[31m"
 	colorLightYellow = "\033[93m"
 	colorGray        = "\033[90m"
 	colorWhite       = "\033[97m"
+	colorWhiteBold   = "\033[1;97m"
 	cursorShow       = "\033[?25h"
 )
 
@@ -29,11 +31,12 @@ var (
 	quiet   bool
 )
 
-const crabASCII = `
- ▀▄  ▄▀
- ▄████▄
- ▀ ▀▀ ▀
-`
+// Crab logo lines for side-by-side rendering with name
+var crabLines = []string{
+	" ▀▄  ▄▀",
+	" ▄████▄",
+	" ▀ ▀▀ ▀",
+}
 
 func chatCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -139,16 +142,23 @@ func printChatHelp() {
 }
 
 func printBanner(c *client.Client, ctx context.Context) {
-	// Print crab ASCII art in orange
-	fmt.Print(colorLightYellow)
-	fmt.Print(crabASCII)
-	fmt.Print(colorReset)
-
-	// Get status for model info
+	// Get status for version info
 	status, err := c.Status(ctx)
+	version := "0.0.0"
+	model := "unknown"
 	if err == nil {
-		fmt.Printf("%sModel: %s  •  Version: %s%s\n", colorGray, status.Model, status.Version, colorReset)
+		version = status.Version
+		model = status.Model
 	}
+
+	// Print crab ASCII art with name and version next to it
+	fmt.Println()
+	fmt.Printf("%s%s%s  %sCraby%s\n", colorRed, crabLines[0], colorReset, colorWhiteBold, colorReset)
+	fmt.Printf("%s%s%s  %sv%s%s\n", colorRed, crabLines[1], colorReset, colorGray, version, colorReset)
+	fmt.Printf("%s%s%s\n", colorRed, crabLines[2], colorReset)
+
+	// Model info
+	fmt.Printf("%sModel: %s%s\n", colorGray, model, colorReset)
 
 	// Instructions in gray
 	fmt.Printf("%sType '/exit' to leave  •  '/terminate' to stop daemon  •  Ctrl+C to interrupt%s\n\n", colorGray, colorReset)
@@ -334,7 +344,7 @@ func runToolCommand(ctx context.Context, c *client.Client, input string) error {
 	}
 
 	if !resp.Success {
-		fmt.Printf("%s✗ Error: %s%s\n", "\033[31m", resp.Error, colorReset)
+		fmt.Printf("%s✗ Error: %s%s\n", colorRed, resp.Error, colorReset)
 	} else {
 		fmt.Printf("%s✓ Success%s\n", "\033[32m", colorReset)
 	}
